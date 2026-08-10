@@ -1,0 +1,299 @@
+<script>
+/**********************************************************************
+ * PLTT Platform
+ * Premier League Top Tipster
+ *
+ * File: JS.html
+ * Version: 3.0.0
+ *
+ * Handles all client-side functionality.
+ *
+ * Change Log
+ * ----------
+ * v3.0.0
+ * • Removed all debug code
+ * • Removed browser test functions
+ * • Cleaned up registration
+ * • Improved player login
+ * • Uses textbox Player Code before localStorage
+ * • Added consistent comments
+ **********************************************************************/
+
+
+/**********************************************************************
+ * Display Message
+ *
+ * Shows a success or error message to the player.
+ **********************************************************************/
+function showMessage(text, cssClass) {
+
+    const message = document.getElementById("message");
+
+    if (!message) return;
+
+    message.className = cssClass || "";
+    message.textContent = text || "";
+
+}
+
+
+/**********************************************************************
+ * Set Register Button Busy
+ *
+ * Prevents multiple clicks while processing.
+ **********************************************************************/
+function setBusy(busy, caption) {
+
+    const button = document.getElementById("registerButton");
+
+    if (!button) return;
+
+    button.disabled = busy;
+
+    button.textContent = busy
+        ? (caption || "Working...")
+        : "Register";
+
+}
+
+
+/**********************************************************************
+ * Register New Player
+ *
+ * Sends registration details to Apps Script.
+ **********************************************************************/
+function registerPlayer() {
+
+    const displayName =
+        document.getElementById("displayName")
+        .value
+        .trim();
+
+    const playerCode =
+        document.getElementById("playerCode")
+        .value
+        .trim()
+        .toUpperCase();
+
+    const mobile =
+        document.getElementById("mobile")
+        .value
+        .trim();
+
+    setBusy(true, "Registering...");
+
+    showMessage("", "");
+
+    google.script.run
+
+        .withSuccessHandler(function(result) {
+
+            setBusy(false);
+
+            if (!result || !result.success) {
+
+                showMessage(
+
+                    result
+                        ? result.message
+                        : "Registration failed.",
+
+                    "error"
+
+                );
+
+                return;
+
+            }
+
+            localStorage.setItem(
+                "pltt_playerCode",
+                playerCode
+            );
+
+            showMessage(
+
+                "Welcome " +
+                result.data.displayName +
+                "! Registration successful.",
+
+                "success"
+
+            );
+
+            document.getElementById("displayName").value = "";
+            document.getElementById("mobile").value = "";
+
+        })
+
+        .withFailureHandler(function(err) {
+
+            setBusy(false);
+
+            showMessage(
+
+                err.message || "Unexpected error.",
+
+                "error"
+
+            );
+
+        })
+
+        .registerPlayer(
+
+            displayName,
+            playerCode,
+            mobile
+
+        );
+
+}
+
+
+/**********************************************************************
+ * Continue Existing Player
+ *
+ * Uses the Player Code entered by the user.
+ * If blank, uses the saved Player Code.
+ **********************************************************************/
+function continuePlayer() {
+
+    let playerCode =
+        document.getElementById("playerCode")
+        .value
+        .trim()
+        .toUpperCase();
+
+    if (playerCode === "") {
+
+        playerCode =
+            localStorage.getItem(
+                "pltt_playerCode"
+            ) || "";
+
+    }
+
+    if (playerCode === "") {
+
+        showMessage(
+
+            "Please enter your Player Code.",
+
+            "error"
+
+        );
+
+        return;
+
+    }
+
+    google.script.run
+
+        .withSuccessHandler(function(result) {
+
+            if (!result || !result.success) {
+
+                showMessage(
+
+                    result
+                        ? result.message
+                        : "Unable to sign in.",
+
+                    "error"
+
+                );
+
+                return;
+
+            }
+
+            localStorage.setItem(
+                "pltt_playerCode",
+                playerCode
+            );
+
+            showMessage(
+
+                "Welcome back " +
+                result.data.displayName +
+                ".",
+
+                "success"
+
+            );
+
+            // v0.3
+            // Load Dashboard
+
+        })
+
+        .withFailureHandler(function(err) {
+
+            showMessage(
+
+                err.message || "Unexpected error.",
+
+                "error"
+
+            );
+
+        })
+
+        .authenticatePlayer(playerCode);
+
+}
+
+
+/**********************************************************************
+ * Logout Player
+ **********************************************************************/
+function logoutPlayer() {
+
+    localStorage.removeItem(
+        "pltt_playerCode"
+    );
+
+    document.getElementById("playerCode").value = "";
+
+    showMessage(
+
+        "Logged out.",
+
+        "success"
+
+    );
+
+}
+
+
+/**********************************************************************
+ * Page Load
+ *
+ * Automatically restores the previously used
+ * Player Code if available.
+ **********************************************************************/
+window.addEventListener(
+
+    "load",
+
+    function () {
+
+        const savedPlayerCode =
+            localStorage.getItem(
+                "pltt_playerCode"
+            );
+
+        if (!savedPlayerCode) return;
+
+        const playerCodeBox =
+            document.getElementById("playerCode");
+
+        if (!playerCodeBox) return;
+
+        playerCodeBox.value = savedPlayerCode;
+
+    }
+
+);
+</script>

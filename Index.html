@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <?!= include('CSS'); ?>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="card">
+
+    <h1>Premier League Top Tipster</h1>
+    <h2>Player Registration</h2>
+
+    <input
+      id="displayName"
+      type="text"
+      placeholder="Display Name"
+      autocomplete="name">
+
+    <input
+      id="playerCode"
+      type="text"
+      maxlength="12"
+      placeholder="Player Code"
+      autocomplete="off"
+      style="text-transform:uppercase;">
+
+    <input
+      id="mobile"
+      type="tel"
+      placeholder="Mobile Number"
+      autocomplete="tel">
+
+    <button
+      id="registerButton"
+      onclick="registerPlayer()">
+      Register
+    </button>
+
+    <div id="message"></div>
+
+    <hr style="margin:30px 0;border:0;border-top:1px solid #2D3753;">
+
+    <h2>Returning Player</h2>
+
+    <button
+      id="continueButton"
+      onclick="continuePlayer()">
+      Continue with Saved Player Code
+    </button>
+
+  </div>
+
+</div>
+
+<?!= include('JS'); ?>
+
+</body>
+</html>
