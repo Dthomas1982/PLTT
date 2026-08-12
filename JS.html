@@ -1,299 +1,112 @@
 <script>
-/**********************************************************************
- * PLTT Platform
- * Premier League Top Tipster
- *
- * File: JS.html
- * Version: 3.0.0
- *
- * Handles all client-side functionality.
- *
- * Change Log
- * ----------
- * v3.0.0
- * • Removed all debug code
- * • Removed browser test functions
- * • Cleaned up registration
- * • Improved player login
- * • Uses textbox Player Code before localStorage
- * • Added consistent comments
- **********************************************************************/
+document.addEventListener("DOMContentLoaded", () => {
+  // Automatically uppercase player code
+  const playerCode = document.getElementById("playerCode");
+  if (playerCode) {
+    playerCode.addEventListener("input", e => {
+      e.target.value = e.target.value.toUpperCase();
+    });
+  }
 
+  // Allow Enter to submit registration
+  ["displayName", "playerCode", "mobile"].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        registerPlayer();
+      }
+    });
+  });
 
-/**********************************************************************
- * Display Message
- *
- * Shows a success or error message to the player.
- **********************************************************************/
-function showMessage(text, cssClass) {
+  // Fade hero content in
+  const hero = document.querySelector(".hero-content");
+  if (hero) {
+    hero.style.opacity = "0";
+    hero.style.transform = "translateY(20px)";
+    requestAnimationFrame(() => {
+      hero.style.transition = "all .8s ease";
+      hero.style.opacity = "1";
+      hero.style.transform = "translateY(0)";
+    });
+  }
+});
 
-    const message = document.getElementById("message");
-
-    if (!message) return;
-
-    message.className = cssClass || "";
-    message.textContent = text || "";
-
-}
-
-
-/**********************************************************************
- * Set Register Button Busy
- *
- * Prevents multiple clicks while processing.
- **********************************************************************/
-function setBusy(busy, caption) {
-
-    const button = document.getElementById("registerButton");
-
-    if (!button) return;
-
-    button.disabled = busy;
-
-    button.textContent = busy
-        ? (caption || "Working...")
-        : "Register";
-
-}
-
-
-/**********************************************************************
- * Register New Player
- *
- * Sends registration details to Apps Script.
- **********************************************************************/
+/**
+ * Called from Register button.
+ * Expects registerPlayerServer() in Code.gs
+ */
 function registerPlayer() {
 
-    const displayName =
-        document.getElementById("displayName")
-        .value
-        .trim();
+  const btn = document.getElementById("registerButton");
+  const msg = document.getElementById("message");
 
-    const playerCode =
-        document.getElementById("playerCode")
-        .value
-        .trim()
-        .toUpperCase();
+  const payload = {
+    displayName: document.getElementById("displayName").value.trim(),
+    playerCode: document.getElementById("playerCode").value.trim().toUpperCase(),
+    mobile: document.getElementById("mobile").value.trim()
+  };
 
-    const mobile =
-        document.getElementById("mobile")
-        .value
-        .trim();
+  if (!payload.displayName || !payload.playerCode || !payload.mobile) {
+    showMessage("Please complete all fields.", false);
+    return;
+  }
 
-    setBusy(true, "Registering...");
+  btn.disabled = true;
+  btn.textContent = "Registering...";
 
-    showMessage("", "");
+  google.script.run
+    .withSuccessHandler(result => {
+      btn.disabled = false;
+      btn.textContent = "ENTER COMPETITION";
 
-    google.script.run
-
-        .withSuccessHandler(function(result) {
-
-            setBusy(false);
-
-            if (!result || !result.success) {
-
-                showMessage(
-
-                    result
-                        ? result.message
-                        : "Registration failed.",
-
-                    "error"
-
-                );
-
-                return;
-
-            }
-
-            localStorage.setItem(
-                "pltt_playerCode",
-                playerCode
-            );
-
-            showMessage(
-
-                "Welcome " +
-                result.data.displayName +
-                "! Registration successful.",
-
-                "success"
-
-            );
-
-            document.getElementById("displayName").value = "";
-            document.getElementById("mobile").value = "";
-
-        })
-
-        .withFailureHandler(function(err) {
-
-            setBusy(false);
-
-            showMessage(
-
-                err.message || "Unexpected error.",
-
-                "error"
-
-            );
-
-        })
-
-        .registerPlayer(
-
-            displayName,
-            playerCode,
-            mobile
-
-        );
-
+      if (result && result.success) {
+        showMessage(result.message || "Registration successful.", true);
+      } else {
+        showMessage(result?.message || "Registration failed.", false);
+      }
+    })
+    .withFailureHandler(err => {
+      btn.disabled = false;
+      btn.textContent = "ENTER COMPETITION";
+      showMessage(err.message || "Unexpected error.", false);
+    })
+    .registerPlayerServer(payload);
 }
 
-
-/**********************************************************************
- * Continue Existing Player
- *
- * Uses the Player Code entered by the user.
- * If blank, uses the saved Player Code.
- **********************************************************************/
+/**
+ * Continue existing player.
+ * Expects continuePlayerServer() in Code.gs
+ */
 function continuePlayer() {
 
-    let playerCode =
-        document.getElementById("playerCode")
-        .value
-        .trim()
-        .toUpperCase();
+  const btn = document.getElementById("continueButton");
+  btn.disabled = true;
+  btn.textContent = "Loading...";
 
-    if (playerCode === "") {
+  google.script.run
+    .withSuccessHandler(url => {
+      btn.disabled = false;
+      btn.textContent = "Continue";
 
-        playerCode =
-            localStorage.getItem(
-                "pltt_playerCode"
-            ) || "";
-
-    }
-
-    if (playerCode === "") {
-
-        showMessage(
-
-            "Please enter your Player Code.",
-
-            "error"
-
-        );
-
-        return;
-
-    }
-
-    google.script.run
-
-        .withSuccessHandler(function(result) {
-
-            if (!result || !result.success) {
-
-                showMessage(
-
-                    result
-                        ? result.message
-                        : "Unable to sign in.",
-
-                    "error"
-
-                );
-
-                return;
-
-            }
-
-            localStorage.setItem(
-                "pltt_playerCode",
-                playerCode
-            );
-
-            showMessage(
-
-                "Welcome back " +
-                result.data.displayName +
-                ".",
-
-                "success"
-
-            );
-
-            // v0.3
-            // Load Dashboard
-
-        })
-
-        .withFailureHandler(function(err) {
-
-            showMessage(
-
-                err.message || "Unexpected error.",
-
-                "error"
-
-            );
-
-        })
-
-        .authenticatePlayer(playerCode);
-
+      if (url) {
+        window.location.href = url;
+      } else {
+        showMessage("No saved player found.", false);
+      }
+    })
+    .withFailureHandler(err => {
+      btn.disabled = false;
+      btn.textContent = "Continue";
+      showMessage(err.message || "Unable to continue.", false);
+    })
+    .continuePlayerServer();
 }
 
-
-/**********************************************************************
- * Logout Player
- **********************************************************************/
-function logoutPlayer() {
-
-    localStorage.removeItem(
-        "pltt_playerCode"
-    );
-
-    document.getElementById("playerCode").value = "";
-
-    showMessage(
-
-        "Logged out.",
-
-        "success"
-
-    );
-
+function showMessage(text, success) {
+  const el = document.getElementById("message");
+  el.textContent = text;
+  el.className = success ? "success" : "error";
 }
-
-
-/**********************************************************************
- * Page Load
- *
- * Automatically restores the previously used
- * Player Code if available.
- **********************************************************************/
-window.addEventListener(
-
-    "load",
-
-    function () {
-
-        const savedPlayerCode =
-            localStorage.getItem(
-                "pltt_playerCode"
-            );
-
-        if (!savedPlayerCode) return;
-
-        const playerCodeBox =
-            document.getElementById("playerCode");
-
-        if (!playerCodeBox) return;
-
-        playerCodeBox.value = savedPlayerCode;
-
-    }
-
-);
 </script>

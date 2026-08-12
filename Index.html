@@ -1,61 +1,142 @@
 <!DOCTYPE html>
 <html>
-
 <head>
   <base target="_top">
   <?!= include('CSS'); ?>
 </head>
-
 <body>
 
-<div class="container">
+<!--
+PLTT Premium Landing Page
+NOTE:
+This file is the foundation layout. It preserves the existing Apps Script
+hooks:
+displayName
+playerCode
+mobile
+registerPlayer()
+continuePlayer()
+message
 
-  <div class="card">
+Replace hero artwork/background in CSS.html.
+-->
 
-    <h1>Premier League Top Tipster</h1>
-    <h2>Player Registration</h2>
+<header class="hero">
+  <div class="hero-overlay"></div>
 
-    <input
-      id="displayName"
-      type="text"
-      placeholder="Display Name"
-      autocomplete="name">
+  <div class="hero-content">
 
-    <input
-      id="playerCode"
-      type="text"
-      maxlength="12"
-      placeholder="Player Code"
-      autocomplete="off"
-      style="text-transform:uppercase;">
+    <div class="brand">
+      <div class="tt-logo">TT</div>
 
-    <input
-      id="mobile"
-      type="tel"
-      placeholder="Mobile Number"
-      autocomplete="tel">
+      <p class="season">PREMIER LEAGUE 2026/27</p>
 
-    <button
-      id="registerButton"
-      onclick="registerPlayer()">
-      Register
-    </button>
+      <h1>Premier League<br>Top Tipster</h1>
 
-    <div id="message"></div>
+      <p class="tagline">
+        Predict. Compete. Win.
+      </p>
 
-    <hr style="margin:30px 0;border:0;border-top:1px solid #2D3753;">
+      <p class="description">
+        Join the ultimate Premier League prediction competition.
+        Climb the leaderboard, beat your friends and become Champion.
+      </p>
 
-    <h2>Returning Player</h2>
+    </div>
 
-    <button
-      id="continueButton"
-      onclick="continuePlayer()">
-      Continue with Saved Player Code
-    </button>
+    <section class="register-card">
+
+      <h2>Enter The Competition</h2>
+
+      <input id="displayName"
+             type="text"
+             placeholder="Display Name">
+
+      <input id="playerCode"
+             type="text"
+             maxlength="12"
+             placeholder="Choose Player Code">
+
+      <input id="mobile"
+             type="tel"
+             placeholder="Mobile Number">
+
+      <button id="registerButton"
+              onclick="registerPlayer()">
+        ENTER COMPETITION
+      </button>
+
+      <div id="message"></div>
+
+      <div class="divider">
+        <span>Returning Player</span>
+      </div>
+
+      <button id="continueButton"
+              class="secondary"
+              onclick="continuePlayer()">
+        Continue
+      </button>
+
+    </section>
 
   </div>
 
-</div>
+</header>
+
+<section class="features">
+
+  <div class="feature">
+    <h3>380</h3>
+    <p>Fixtures</p>
+  </div>
+
+  <div class="feature">
+    <h3>38</h3>
+    <p>Gameweeks</p>
+  </div>
+
+  <div class="feature">
+    <h3>Live</h3>
+    <p>Leaderboards</p>
+  </div>
+
+  <div class="feature">
+    <h3>Weekly</h3>
+    <p>Prizes</p>
+  </div>
+
+</section>
+
+<section class="promo">
+
+  <div class="promo-text">
+    <h2>The Ultimate Prediction Competition</h2>
+
+    <p>
+      Premium statistics, weekly champions,
+      season-long rankings and a professional
+      football experience.
+    </p>
+
+  </div>
+
+  <div class="promo-image">
+    <!-- Replace with new branded artwork -->
+    <div class="image-placeholder">
+      HERO ARTWORK
+    </div>
+  </div>
+
+</section>
+
+<footer>
+
+  <p>
+    © Premier League Top Tipster
+  </p>
+
+</footer>
 
 <?!= include('JS'); ?>
 
