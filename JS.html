@@ -1,112 +1,431 @@
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-  // Automatically uppercase player code
-  const playerCode = document.getElementById("playerCode");
-  if (playerCode) {
-    playerCode.addEventListener("input", e => {
-      e.target.value = e.target.value.toUpperCase();
-    });
-  }
+/**********************************************************************
+ * PLTT Platform
+ * JS.html
+ * Version: 0.4.2
+ *
+ * F001 - Player Registration
+ * F002 - Player Recognition foundation
+ * App shell navigation
+ **********************************************************************/
 
-  // Allow Enter to submit registration
-  ["displayName", "playerCode", "mobile"].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener("keydown", e => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        registerPlayer();
-      }
-    });
-  });
+const PLTT = {
 
-  // Fade hero content in
-  const hero = document.querySelector(".hero-content");
-  if (hero) {
+  storageKey: "PLTT_PLAYER_CODE",
+  currentPlayer: null,
+
+  init() {
+    this.setupPlayerCodeInput();
+    this.setupEnterKeys();
+    this.setupNavigation();
+    this.animatePublicView();
+    this.checkRememberedPlayer();
+  },
+
+  setupPlayerCodeInput() {
+    const playerCode = document.getElementById("playerCode");
+
+    if (!playerCode) return;
+
+    playerCode.addEventListener("input", () => {
+      playerCode.value = playerCode.value.toUpperCase();
+    });
+  },
+
+  setupEnterKeys() {
+    ["displayName", "playerCode", "mobile"].forEach(id => {
+      const input = document.getElementById(id);
+
+      if (!input) return;
+
+      input.addEventListener("keydown", event => {
+        if (event.key !== "Enter") return;
+
+        event.preventDefault();
+        this.register();
+      });
+    });
+  },
+
+  setupNavigation() {
+    document.querySelectorAll(".app-nav-item").forEach(button => {
+      button.addEventListener("click", () => {
+        const view = button.dataset.view;
+        this.showAppView(view);
+      });
+    });
+  },
+
+  animatePublicView() {
+    const hero = document.querySelector("#publicView .hero-content");
+
+    if (!hero) return;
+
     hero.style.opacity = "0";
     hero.style.transform = "translateY(20px)";
+
     requestAnimationFrame(() => {
-      hero.style.transition = "all .8s ease";
+      hero.style.transition = "opacity .8s ease, transform .8s ease";
       hero.style.opacity = "1";
       hero.style.transform = "translateY(0)";
     });
-  }
-});
+  },
 
-/**
- * Called from Register button.
- * Expects registerPlayerServer() in Code.gs
- */
+  register() {
+    const button = document.getElementById("registerButton");
+
+    const displayName = document.getElementById("displayName");
+    const playerCode = document.getElementById("playerCode");
+    const mobile = document.getElementById("mobile");
+
+    if (!button || !displayName || !playerCode || !mobile) return;
+
+    const payload = {
+      displayName: displayName.value.trim(),
+      playerCode: playerCode.value.trim().toUpperCase(),
+      mobile: mobile.value.trim()
+    };
+
+    if (!payload.displayName || !payload.playerCode || !payload.mobile) {
+      this.showMessage("Please complete all fields.", false);
+      return;
+    }
+
+    button.disabled = true;
+    button.textContent = "REGISTERING...";
+
+    google.script.run
+      .withSuccessHandler(result => {
+        button.disabled = false;
+        button.textContent = "ENTER COMPETITION";
+
+        if (!result || !result.success) {
+          this.showMessage(
+            result && result.message
+              ? result.message
+              : "Registration failed.",
+            false
+          );
+          return;
+        }
+
+        const registeredPlayer = result.data || {};
+        const savedCode = registeredPlayer.playerCode || payload.playerCode;
+
+        localStorage.setItem(this.storageKey, savedCode);
+
+        this.showMessage(
+          result.message || "Registration successful.",
+          true
+        );
+
+        this.currentPlayer = registeredPlayer;
+
+        setTimeout(() => {
+          this.openApplication(registeredPlayer);
+        }, 500);
+      })
+      .withFailureHandler(error => {
+        button.disabled = false;
+        button.textContent = "ENTER COMPETITION";
+
+        this.showMessage(
+          error && error.message
+            ? error.message
+            : "Unable to register player.",
+          false
+        );
+      })
+      .registerPlayerServer(payload);
+  },
+
+  continuePlayer() {
+    const savedCode = localStorage.getItem(this.storageKey);
+
+    if (!savedCode) {
+      this.showMessage("No saved player found.", false);
+      return;
+    }
+
+    const button = document.getElementById("continueButton");
+
+    if (button) {
+      button.disabled = true;
+      button.textContent = "LOADING...";
+    }
+
+    google.script.run
+      .withSuccessHandler(result => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = "Continue";
+        }
+
+        if (!result || !result.success) {
+          localStorage.removeItem(this.storageKey);
+          this.showMessage(
+            result && result.message
+              ? result.message
+              : "Player could not be recognised.",
+            false
+          );
+          return;
+        }
+
+        this.currentPlayer = result.data || {};
+        this.openApplication(this.currentPlayer);
+      })
+      .withFailureHandler(error => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = "Continue";
+        }
+
+        this.showMessage(
+          error && error.message
+            ? error.message
+            : "Unable to recognise player.",
+          false
+        );
+      })
+      .authenticatePlayerServer(savedCode);
+  },
+
+  checkRememberedPlayer() {
+    const savedCode = localStorage.getItem(this.storageKey);
+
+    if (!savedCode) return;
+
+    google.script.run
+      .withSuccessHandler(result => {
+        if (!result || !result.success) {
+          localStorage.removeItem(this.storageKey);
+          return;
+        }
+
+        this.currentPlayer = result.data || {};
+        this.openApplication(this.currentPlayer);
+      })
+      .withFailureHandler(() => {
+        localStorage.removeItem(this.storageKey);
+      })
+      .authenticatePlayerServer(savedCode);
+  },
+
+  openApplication(player) {
+    const publicView = document.getElementById("publicView");
+    const appView = document.getElementById("appView");
+
+    if (!publicView || !appView) return;
+
+    publicView.hidden = true;
+    appView.hidden = false;
+
+    const playerName = player && player.displayName
+      ? player.displayName
+      : "Player";
+
+    const appPlayerName = document.getElementById("appPlayerName");
+    const appWelcome = document.getElementById("appWelcome");
+
+    if (appPlayerName) {
+      appPlayerName.textContent = playerName;
+    }
+
+    if (appWelcome) {
+      appWelcome.textContent = "Welcome back, " + playerName + ".";
+    }
+
+    this.showAppView("dashboard");
+    window.scrollTo(0, 0);
+  },
+
+  showAppView(view) {
+    const title = document.getElementById("appPageTitle");
+    const content = document.getElementById("appContent");
+
+    if (!title || !content) return;
+
+    document.querySelectorAll(".app-nav-item").forEach(button => {
+      button.classList.toggle(
+        "active",
+        button.dataset.view === view
+      );
+    });
+
+    const views = {
+      dashboard: {
+        title: "Dashboard",
+        html: this.dashboardMarkup()
+      },
+      predictions: {
+        title: "Predictions",
+        html: this.predictionsPlaceholder()
+      },
+      leaderboard: {
+        title: "Leaderboard",
+        html: this.leaderboardPlaceholder()
+      },
+      fixtures: {
+        title: "Fixtures",
+        html: this.fixturesPlaceholder()
+      },
+      rules: {
+        title: "Rules",
+        html: this.rulesPlaceholder()
+      }
+    };
+
+    const selected = views[view] || views.dashboard;
+
+    title.textContent = selected.title;
+    content.innerHTML = selected.html;
+
+    this.bindDynamicActions(view);
+  },
+
+  dashboardMarkup() {
+    const player = this.currentPlayer || {};
+    const points = Number(player.seasonPoints || 0);
+    const rank = player.seasonRank || "—";
+    const gameweeks = Number(player.gameweeksPlayed || 0);
+
+    return `
+      <div class="app-content-grid">
+        <article class="app-card accent">
+          <p class="season">GAMEWEEK 1</p>
+          <h2>Make your predictions</h2>
+          <p>Your prediction card will appear here once the fixtures are published.</p>
+          <button class="app-action" data-action="predictions">OPEN PREDICTIONS</button>
+        </article>
+
+        <article class="app-card">
+          <p class="season">YOUR SEASON</p>
+          <h2>Current standing</h2>
+          <div class="app-stat-row">
+            <div class="app-stat"><strong>${points}</strong><span>Points</span></div>
+            <div class="app-stat"><strong>${rank}</strong><span>Rank</span></div>
+            <div class="app-stat"><strong>${gameweeks}</strong><span>Gameweeks</span></div>
+          </div>
+        </article>
+
+        <article class="app-card">
+          <h2>Leaderboard</h2>
+          <p>See how you are performing against the competition.</p>
+          <button class="secondary app-card-action" data-action="leaderboard">VIEW LEADERBOARD</button>
+        </article>
+
+        <article class="app-card">
+          <h2>Fixtures</h2>
+          <p>Check the upcoming Premier League fixtures before locking your picks.</p>
+          <button class="secondary app-card-action" data-action="fixtures">VIEW FIXTURES</button>
+        </article>
+      </div>
+    `;
+  },
+
+  predictionsPlaceholder() {
+    return `
+      <article class="app-card accent">
+        <p class="season">PREDICTION CENTRE</p>
+        <h2>Your predictions are coming next.</h2>
+        <p>The next development step will load the published Gameweek fixtures here and allow you to save and submit your picks.</p>
+      </article>
+    `;
+  },
+
+  leaderboardPlaceholder() {
+    return `
+      <article class="app-card">
+        <p class="season">LEADERBOARD</p>
+        <h2>Standings</h2>
+        <div class="app-placeholder-list">
+          <div class="app-placeholder-item"><strong>Leaderboard engine</strong><span>Waiting for scored predictions.</span></div>
+          <div class="app-placeholder-item"><strong>Your ranking</strong><span>Your live position will appear here.</span></div>
+        </div>
+      </article>
+    `;
+  },
+
+  fixturesPlaceholder() {
+    return `
+      <article class="app-card">
+        <p class="season">FIXTURES</p>
+        <h2>Premier League fixtures</h2>
+        <div class="app-placeholder-list">
+          <div class="app-placeholder-item"><strong>Fixture feed</strong><span>Fixtures API integration is the next backend feature.</span></div>
+        </div>
+      </article>
+    `;
+  },
+
+  rulesPlaceholder() {
+    return `
+      <article class="app-card">
+        <p class="season">RULES</p>
+        <h2>How PLTT works</h2>
+        <div class="app-placeholder-list">
+          <div class="app-placeholder-item"><strong>Predict</strong><span>Submit your picks before the relevant deadline.</span></div>
+          <div class="app-placeholder-item"><strong>Score</strong><span>Points are awarded according to the competition scoring rules.</span></div>
+          <div class="app-placeholder-item"><strong>Compete</strong><span>Climb the weekly and season leaderboard.</span></div>
+        </div>
+      </article>
+    `;
+  },
+
+  bindDynamicActions(view) {
+    document.querySelectorAll("[data-action]").forEach(button => {
+      button.addEventListener("click", () => {
+        this.showAppView(button.dataset.action);
+      });
+    });
+
+    if (view === "dashboard") {
+      const title = document.getElementById("appPageTitle");
+      if (title) title.textContent = "Dashboard";
+    }
+  },
+
+  logout() {
+    localStorage.removeItem(this.storageKey);
+    this.currentPlayer = null;
+
+    const publicView = document.getElementById("publicView");
+    const appView = document.getElementById("appView");
+
+    if (appView) appView.hidden = true;
+    if (publicView) publicView.hidden = false;
+
+    const message = document.getElementById("message");
+    if (message) {
+      message.textContent = "You have been logged out.";
+      message.className = "success";
+    }
+
+    window.scrollTo(0, 0);
+  },
+
+  showMessage(text, success) {
+    const element = document.getElementById("message");
+
+    if (!element) return;
+
+    element.textContent = text;
+    element.className = success ? "success" : "error";
+  }
+};
+
 function registerPlayer() {
-
-  const btn = document.getElementById("registerButton");
-  const msg = document.getElementById("message");
-
-  const payload = {
-    displayName: document.getElementById("displayName").value.trim(),
-    playerCode: document.getElementById("playerCode").value.trim().toUpperCase(),
-    mobile: document.getElementById("mobile").value.trim()
-  };
-
-  if (!payload.displayName || !payload.playerCode || !payload.mobile) {
-    showMessage("Please complete all fields.", false);
-    return;
-  }
-
-  btn.disabled = true;
-  btn.textContent = "Registering...";
-
-  google.script.run
-    .withSuccessHandler(result => {
-      btn.disabled = false;
-      btn.textContent = "ENTER COMPETITION";
-
-      if (result && result.success) {
-        showMessage(result.message || "Registration successful.", true);
-      } else {
-        showMessage(result?.message || "Registration failed.", false);
-      }
-    })
-    .withFailureHandler(err => {
-      btn.disabled = false;
-      btn.textContent = "ENTER COMPETITION";
-      showMessage(err.message || "Unexpected error.", false);
-    })
-    .registerPlayerServer(payload);
+  PLTT.register();
 }
 
-/**
- * Continue existing player.
- * Expects continuePlayerServer() in Code.gs
- */
 function continuePlayer() {
-
-  const btn = document.getElementById("continueButton");
-  btn.disabled = true;
-  btn.textContent = "Loading...";
-
-  google.script.run
-    .withSuccessHandler(url => {
-      btn.disabled = false;
-      btn.textContent = "Continue";
-
-      if (url) {
-        window.location.href = url;
-      } else {
-        showMessage("No saved player found.", false);
-      }
-    })
-    .withFailureHandler(err => {
-      btn.disabled = false;
-      btn.textContent = "Continue";
-      showMessage(err.message || "Unable to continue.", false);
-    })
-    .continuePlayerServer();
+  PLTT.continuePlayer();
 }
 
-function showMessage(text, success) {
-  const el = document.getElementById("message");
-  el.textContent = text;
-  el.className = success ? "success" : "error";
+function logoutPlayer() {
+  PLTT.logout();
 }
+
+document.addEventListener("DOMContentLoaded", () => PLTT.init());
 </script>
