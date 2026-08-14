@@ -1,12 +1,13 @@
 /**********************************************************************
  * PLTT Platform
  * Config.js
- * Version: 0.5.0.1
+ * Version: 0.5.1
  *
  * Release:
- * - Data Layer Foundation
- * - Teams Sheet is source of truth
- * - Prediction Centre data abstraction
+ * - Prediction Centre Foundation
+ * - Dynamic Fixture Pipeline
+ * - Website Configuration
+ * - Data Layer Complete
  * - Stable Authentication Foundation
  *
  * Status:
@@ -15,7 +16,7 @@
 
 const APP = {
   NAME: "Premier League Top Tipster",
-  VERSION: "0.5.0.1",
+  VERSION: "0.5.1",
   SEASON: "2026/27",
   TIMEZONE: Session.getScriptTimeZone()
 };
@@ -23,11 +24,13 @@ const APP = {
 const SHEETS = {
   PLAYERS: "Players",
   TEAMS: "Teams",
+  GAMEWEEKS: "Gameweeks",
   FIXTURES: "Fixtures",
   PREDICTIONS: "PredictionItems",
   PREDICTIONSETS: "PredictionSets",
   PAYMENTS: "Payments",
   LEADERBOARD: "Leaderboard",
+  WEBSITE: "Website",
   LOGS: "Logs",
   SETTINGS: "Settings"
 };
