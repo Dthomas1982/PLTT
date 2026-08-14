@@ -23,23 +23,28 @@
       <section class="register-card">
         <h2>Enter The Competition</h2>
 
-        <input id="displayName" type="text" placeholder="Display Name" autocomplete="name">
-        <input id="playerCode" type="text" maxlength="12" placeholder="Choose Player Code" autocomplete="off">
-        <input id="mobile" type="tel" placeholder="Mobile Number" autocomplete="tel">
+        <div id="registrationFields">
+          <input id="displayName" type="text" placeholder="Display Name" autocomplete="name">
+          <input id="playerCode" type="text" maxlength="12" placeholder="Choose Player Code" autocomplete="off">
+          <input id="mobile" type="tel" placeholder="Mobile Number" autocomplete="tel">
 
-        <button id="registerButton" onclick="registerPlayer()">
-          ENTER COMPETITION
-        </button>
-
-        <div id="message"></div>
-
-        <div class="divider">
-          <span>Returning Player</span>
+          <button id="registerButton" onclick="registerPlayer()">
+            ENTER COMPETITION
+          </button>
         </div>
 
-        <button id="continueButton" class="secondary" onclick="continuePlayer()">
-          Continue
-        </button>
+        <div id="message" aria-live="polite"></div>
+
+        <div class="divider">
+          <span>Already Registered?</span>
+        </div>
+
+        <div id="returningPlayerLogin" class="returning-player-login">
+          <input id="returningPlayerCode" type="text" maxlength="12" placeholder="Player Code" autocomplete="off">
+          <button type="button" id="returningLoginButton" class="secondary" onclick="continuePlayer()">
+            CONTINUE
+          </button>
+        </div>
       </section>
     </div>
   </header>
