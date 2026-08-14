@@ -2,15 +2,15 @@
 /**********************************************************************
  * PLTT Platform
  * JS.html
- * Version: 0.5.0
+ * Version: 0.5.0.1
  *
  * Release:
- * - Prediction Centre Phase 1
- * - Fixture Display
+ * - Data Layer Foundation
+ * - Prediction Centre consumes Teams sheet data
  * - Stable Authentication Foundation
  *
  * Status:
- * Authentication Complete
+ * Stable
  **********************************************************************/
 
 (function (window, document) {
@@ -312,7 +312,7 @@
       title.textContent = selected.title;
       content.innerHTML = selected.html;
 
-      if (view === "predictions") {
+      if (view === "predictions" && window.PREDICTION_CENTRE) {
         window.PREDICTION_CENTRE.load();
       }
 
