@@ -2,15 +2,15 @@
 /**********************************************************************
  * PLTT Platform
  * JS.html
- * Version: 0.4.2.3
+ * Version: 0.4.2.5
  *
  * F001 - Player Registration
  * F002 - Player Recognition
  *
- * Authentication uses one path only:
+ * Authentication:
  * - Player Code is the permanent player identity.
- * - localStorage remembers the code on the current browser.
- * - All authentication calls authenticatePlayerServer().
+ * - localStorage is convenience only.
+ * - Manual login always uses the dedicated returning-player field.
  **********************************************************************/
 
 const PLTT = {
@@ -18,15 +18,13 @@ const PLTT = {
   currentPlayer: null,
 
   init() {
-    this.setupPlayerCodeInput();
-    this.setupRegistrationEnterKeys();
-    this.setupReturningLogin();
+    this.setupPlayerInputs();
     this.setupNavigation();
     this.animatePublicView();
     this.checkRememberedPlayer();
   },
 
-  setupPlayerCodeInput() {
+  setupPlayerInputs() {
     [
       document.getElementById("playerCode"),
       document.getElementById("returningPlayerCode")
@@ -35,47 +33,32 @@ const PLTT = {
       input.addEventListener("input", () => {
         input.value = input.value.toUpperCase();
       });
-    });
-  },
-
-  setupRegistrationEnterKeys() {
-    ["displayName", "playerCode", "mobile"].forEach(id => {
-      const input = document.getElementById(id);
-      if (!input) return;
-
       input.addEventListener("keydown", event => {
         if (event.key !== "Enter") return;
         event.preventDefault();
-
-        if (id === "playerCode" && !document.getElementById("displayName")?.value.trim()) {
-          this.loginWithPlayerCodeInput();
-          return;
+        if (input.id === "returningPlayerCode") {
+          this.manualLogin();
+        } else if (document.getElementById("displayName")?.value.trim()) {
+          this.register();
+        } else {
+          this.manualLogin();
         }
+      });
+    });
 
+    ["displayName", "mobile"].forEach(id => {
+      const input = document.getElementById(id);
+      if (!input) return;
+      input.addEventListener("keydown", event => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
         this.register();
       });
     });
-  },
 
-  setupReturningLogin() {
-    const button = document.getElementById("continueButton");
-    const input = document.getElementById("returningPlayerCode");
-
-    if (button && !button.dataset.bound) {
-      button.dataset.bound = "1";
-      button.addEventListener("click", () => this.continuePlayer());
-    }
-
-    if (input && !input.dataset.bound) {
-      input.dataset.bound = "1";
-      input.addEventListener("input", () => {
-        input.value = input.value.toUpperCase();
-      });
-      input.addEventListener("keydown", event => {
-        if (event.key !== "Enter") return;
-        event.preventDefault();
-        this.continuePlayer();
-      });
+    const loginButton = document.getElementById("returningLoginButton");
+    if (loginButton) {
+      loginButton.addEventListener("click", () => this.manualLogin());
     }
   },
 
@@ -88,10 +71,8 @@ const PLTT = {
   animatePublicView() {
     const hero = document.querySelector("#publicView .hero-content");
     if (!hero) return;
-
     hero.style.opacity = "0";
     hero.style.transform = "translateY(20px)";
-
     requestAnimationFrame(() => {
       hero.style.transition = "opacity .8s ease, transform .8s ease";
       hero.style.opacity = "1";
@@ -126,85 +107,83 @@ const PLTT = {
         button.disabled = false;
         button.textContent = "ENTER COMPETITION";
 
-        if (!result || !result.success) {
-          this.showMessage(
-            result && result.message ? result.message : "Registration failed.",
-            false
-          );
+        if (!result || !result.success || !result.data) {
+          this.showMessage(result?.message || "Registration failed.", false);
           return;
         }
 
-        const player = result.data || {};
+        const player = result.data;
         const code = player.playerCode || payload.playerCode;
-
-        this.currentPlayer = player;
         localStorage.setItem(this.storageKey, code);
+        this.currentPlayer = player;
         this.openApplication(player);
       })
       .withFailureHandler(error => {
         button.disabled = false;
         button.textContent = "ENTER COMPETITION";
-        this.showMessage(
-          error && error.message ? error.message : "Unable to register player.",
-          false
-        );
+        this.showMessage(error?.message || "Unable to register player.", false);
       })
       .registerPlayerServer(payload);
   },
 
-  loginWithPlayerCodeInput() {
+  manualLogin() {
     const input = document.getElementById("returningPlayerCode");
+    const button = document.getElementById("returningLoginButton");
 
-    if (!input) {
+    const code = input ? input.value.trim().toUpperCase() : "";
+
+    if (!code) {
       this.showMessage("Enter your Player Code to continue.", false);
+      if (input) input.focus();
       return;
     }
 
-    this.login(input.value);
+    this.authenticate(code, {
+      manual: true,
+      button: button
+    });
   },
 
   continuePlayer() {
     const savedCode = localStorage.getItem(this.storageKey);
 
     if (savedCode) {
-      this.login(savedCode, { remembered: true });
+      this.authenticate(savedCode, { remembered: true });
       return;
     }
 
-    this.loginWithPlayerCodeInput();
+    this.manualLogin();
   },
 
-  login(playerCode, options = {}) {
+  authenticate(playerCode, options = {}) {
     const cleanedCode = String(playerCode || "").trim().toUpperCase();
-    const button = document.getElementById("returningLoginButton");
-    const oldContinueButton = document.getElementById("continueButton");
 
     if (!cleanedCode) {
       this.showMessage("Enter your Player Code to continue.", false);
       return;
     }
 
-    [button, oldContinueButton].forEach(control => {
-      if (!control) return;
-      control.disabled = true;
-      control.textContent = "CHECKING...";
-    });
+    const button = options.button || document.getElementById("returningLoginButton");
+
+    if (button) {
+      button.disabled = true;
+      button.textContent = "CHECKING...";
+    }
 
     google.script.run
       .withSuccessHandler(result => {
-        [button, oldContinueButton].forEach(control => {
-          if (!control) return;
-          control.disabled = false;
-          control.textContent = control.id === "returningLoginButton" ? "CONTINUE" : "Continue";
-        });
+        if (button) {
+          button.disabled = false;
+          button.textContent = "CONTINUE";
+        }
 
-        if (!result || !result.success || !result.data) {
+        if (!result || result.success !== true || !result.data) {
           if (options.remembered) {
             localStorage.removeItem(this.storageKey);
           }
           this.currentPlayer = null;
           this.showMessage(
-            result && result.message ? result.message : "Player Code not recognised.",
+            result?.message || "Player Code not recognised.",
             false
           );
           return;
@@ -218,11 +197,10 @@ const PLTT = {
         this.openApplication(player);
       })
       .withFailureHandler(error => {
-        [button, oldContinueButton].forEach(control => {
-          if (!control) return;
-          control.disabled = false;
-          control.textContent = control.id === "returningLoginButton" ? "CONTINUE" : "Continue";
-        });
+        if (button) {
+          button.disabled = false;
+          button.textContent = "CONTINUE";
+        }
 
         if (options.remembered) {
           localStorage.removeItem(this.storageKey);
@@ -230,7 +208,7 @@ const PLTT = {
 
         this.currentPlayer = null;
         this.showMessage(
-          error && error.message ? error.message : "Unable to authenticate player.",
+          error?.message || "Unable to authenticate player.",
           false
         );
       })
@@ -241,7 +219,7 @@ const PLTT = {
     const savedCode = localStorage.getItem(this.storageKey);
     if (!savedCode) return;
 
-    this.login(savedCode, { remembered: true });
+    this.authenticate(savedCode, { remembered: true });
   },
 
   switchPlayer() {
@@ -253,9 +231,6 @@ const PLTT = {
       input.value = "";
       input.focus();
     }
-
-    const switchButton = document.getElementById("switchPlayerButton");
-    if (switchButton) switchButton.hidden = true;
 
     this.showMessage("Enter the Player Code for the player you want to use.", true);
   },
@@ -410,9 +385,6 @@ const PLTT = {
 
     const returningInput = document.getElementById("returningPlayerCode");
     if (returningInput) returningInput.value = "";
-
-    const switchButton = document.getElementById("switchPlayerButton");
-    if (switchButton) switchButton.hidden = true;
 
     this.showMessage("You have been logged out.", true);
     window.scrollTo(0, 0);
