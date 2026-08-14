@@ -1,17 +1,17 @@
 /**********************************************************************
  * PLTT Platform
  * Config.js
- * Version: 0.4.2.6
+ * Version: 0.4.2.7
  *
+ * Release: Client runtime stabilisation
  * F001 - Player Registration
  * F002 - Player Recognition
- *
- * Central application configuration.
+ * F003 - Application Shell Navigation
  **********************************************************************/
 
 const APP = {
   NAME: "Premier League Top Tipster",
-  VERSION: "0.4.2.6",
+  VERSION: "0.4.2.7",
   SEASON: "2026/27",
   TIMEZONE: Session.getScriptTimeZone()
 };
