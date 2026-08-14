@@ -1,7 +1,14 @@
 /**********************************************************************
  * PLTT Platform
  * Utilities.gs
- * Version: 2.0.0
+ * Version: 0.4.3.0
+ *
+ * Release:
+ * - Stable Authentication Baseline
+ * - Shared utility functions for production authentication
+ *
+ * Status:
+ * Authentication Complete
  **********************************************************************/
 
 function getWorkbook() {
@@ -54,7 +61,7 @@ function cleanPlayerCode(code) {
 }
 
 function cleanMobile(number) {
-  return String(number).replace(/\s+/g,"").trim();
+  return String(number).replace(/\s+/g, "").trim();
 }
 
 function isValidPlayerCode(code) {
