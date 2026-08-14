@@ -1,28 +1,34 @@
 /**********************************************************************
  * PLTT Platform
  * PredictionCentre.js
- * Version: 0.5.0
+ * Version: 0.5.0.1
  *
  * Release:
- * - Prediction Centre Phase 1
- * - Fixture Display
+ * - Data Layer Foundation
+ * - Prediction Centre consumes enriched fixture/team data
+ * - Teams sheet is the single source of truth
  * - Stable Authentication Foundation
+ *
+ * Status:
+ * Stable
  **********************************************************************/
 
 const PREDICTION_CENTRE = {
 
   load() {
-    const content = document.getElementById("appContent");
+    const content = document.getElementById('appContent');
     if (!content) return;
 
     content.innerHTML = this.loadingMarkup();
 
     google.script.run
       .withSuccessHandler(fixtures => {
-        this.render(fixtures || []);
+        this.render(Array.isArray(fixtures) ? fixtures : []);
       })
       .withFailureHandler(error => {
-        content.innerHTML = this.errorMarkup(error && error.message ? error.message : "Unable to load fixtures.");
+        content.innerHTML = this.errorMarkup(
+          error && error.message ? error.message : 'Unable to load fixtures.'
+        );
       })
       .getPredictionCentreFixtures();
   },
@@ -52,7 +58,7 @@ const PREDICTION_CENTRE = {
   },
 
   render(fixtures) {
-    const content = document.getElementById("appContent");
+    const content = document.getElementById('appContent');
     if (!content) return;
 
     if (!fixtures.length) {
@@ -70,18 +76,19 @@ const PREDICTION_CENTRE = {
 
     const groups = {};
     fixtures.forEach(fixture => {
-      const key = fixture.date || "Date TBC";
+      const key = fixture.date || 'Date TBC';
       if (!groups[key]) groups[key] = [];
       groups[key].push(fixture);
     });
 
     const dates = Object.keys(groups);
+    const gameweek = fixtures[0].gameweekID || '';
 
     content.innerHTML = `
       <section class="prediction-centre">
         <div class="prediction-centre-header">
           <div>
-            <p class="season">GAMEWEEK ${this.escapeHtml(fixtures[0].gameweek)}</p>
+            <p class="season">GAMEWEEK ${this.escapeHtml(gameweek)}</p>
             <h2>Prediction Centre</h2>
             <p>Fixtures for the current Gameweek.</p>
           </div>
@@ -96,38 +103,45 @@ const PREDICTION_CENTRE = {
             <section class="fixture-date-group">
               <div class="fixture-date-heading">${this.escapeHtml(date)}</div>
               <div class="prediction-list">
-                ${groups[date].map(fixture => this.fixtureMarkup(fixture)).join("")}
+                ${groups[date].map(fixture => this.fixtureMarkup(fixture)).join('')}
               </div>
             </section>
-          `).join("")}
+          `).join('')}
         </div>
       </section>
     `;
   },
 
   fixtureMarkup(fixture) {
-    const homeBadge = fixture.homeBadge
-      ? `<img src="${this.escapeAttribute(fixture.homeBadge)}" alt="" class="fixture-badge">`
+    const home = fixture.homeTeam || {};
+    const away = fixture.awayTeam || {};
+
+    const homeBadge = home.badgeURL
+      ? `<img src="${this.escapeAttribute(home.badgeURL)}" alt="" class="fixture-badge">`
       : `<span class="fixture-badge-placeholder">H</span>`;
 
-    const awayBadge = fixture.awayBadge
-      ? `<img src="${this.escapeAttribute(fixture.awayBadge)}" alt="" class="fixture-badge">`
+    const awayBadge = away.badgeURL
+      ? `<img src="${this.escapeAttribute(away.badgeURL)}" alt="" class="fixture-badge">`
       : `<span class="fixture-badge-placeholder">A</span>`;
 
     return `
       <article class="prediction-fixture-card">
         <div class="fixture-meta">
-          <span>${this.escapeHtml(fixture.time || "Kick-off TBC")}</span>
+          <span>${this.escapeHtml(fixture.kickoff || 'Kick-off TBC')}</span>
+          <span>${this.escapeHtml(fixture.status || 'Scheduled')}</span>
         </div>
+
         <div class="fixture-teams">
           <div class="fixture-team home">
+            <span>${this.escapeHtml(home.clubName || fixture.homeTeamID || 'Home team')}</span>
             ${homeBadge}
-            <span>${this.escapeHtml(fixture.homeTeam)}</span>
           </div>
+
           <div class="fixture-vs">VS</div>
+
           <div class="fixture-team away">
-            <span>${this.escapeHtml(fixture.awayTeam)}</span>
             ${awayBadge}
+            <span>${this.escapeHtml(away.clubName || fixture.awayTeamID || 'Away team')}</span>
           </div>
         </div>
       </article>
@@ -135,12 +149,12 @@ const PREDICTION_CENTRE = {
   },
 
   escapeHtml(value) {
-    return String(value || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   },
 
   escapeAttribute(value) {
