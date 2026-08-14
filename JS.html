@@ -2,18 +2,17 @@
 /**********************************************************************
  * PLTT Platform
  * JS.html
- * Version: 0.4.3
+ * Version: 0.4.2.1
  *
  * F001 - Player Registration
  * F002 - Player Recognition
- * F003 - Prediction Centre UI
+ * App shell navigation
  **********************************************************************/
 
 const PLTT = {
+
   storageKey: "PLTT_PLAYER_CODE",
   currentPlayer: null,
-  currentFixtures: [],
-  currentView: "dashboard",
 
   init() {
     this.setupPlayerCodeInput();
@@ -25,6 +24,7 @@ const PLTT = {
 
   setupPlayerCodeInput() {
     const playerCode = document.getElementById("playerCode");
+
     if (!playerCode) return;
 
     playerCode.addEventListener("input", () => {
@@ -35,11 +35,17 @@ const PLTT = {
   setupEnterKeys() {
     ["displayName", "playerCode", "mobile"].forEach(id => {
       const input = document.getElementById(id);
+
       if (!input) return;
 
       input.addEventListener("keydown", event => {
         if (event.key !== "Enter") return;
+
         event.preventDefault();
+        if (id === "playerCode" && !document.getElementById("displayName")?.value.trim()) {
+          this.authenticateEnteredPlayer();
+          return;
+        }
         this.register();
       });
     });
@@ -48,13 +54,15 @@ const PLTT = {
   setupNavigation() {
     document.querySelectorAll(".app-nav-item").forEach(button => {
       button.addEventListener("click", () => {
-        this.showAppView(button.dataset.view);
+        const view = button.dataset.view;
+        this.showAppView(view);
       });
     });
   },
 
   animatePublicView() {
     const hero = document.querySelector("#publicView .hero-content");
+
     if (!hero) return;
 
     hero.style.opacity = "0";
@@ -82,7 +90,7 @@ const PLTT = {
     };
 
     if (!payload.displayName || !payload.playerCode || !payload.mobile) {
-      this.showMessage("Please complete all fields.", false);
+      this.showMessage("Please complete all registration fields.", false);
       return;
     }
 
@@ -102,18 +110,12 @@ const PLTT = {
           return;
         }
 
-        const registeredPlayer = result.data || {};
-        const savedCode = registeredPlayer.playerCode || payload.playerCode;
+        const player = result.data || {};
+        const savedCode = player.playerCode || payload.playerCode;
 
         localStorage.setItem(this.storageKey, savedCode);
-        this.currentPlayer = registeredPlayer;
-
-        this.showMessage(
-          result.message || "Registration successful.",
-          true
-        );
-
-        setTimeout(() => this.openApplication(registeredPlayer), 500);
+        this.currentPlayer = player;
+        this.openApplication(player);
       })
       .withFailureHandler(error => {
         button.disabled = false;
@@ -126,15 +128,72 @@ const PLTT = {
       .registerPlayerServer(payload);
   },
 
-  continuePlayer() {
-    const savedCode = localStorage.getItem(this.storageKey);
+  authenticateEnteredPlayer() {
+    const input = document.getElementById("playerCode");
+    const button = document.getElementById("continueButton");
 
-    if (!savedCode) {
-      this.showMessage("No saved player found.", false);
+    if (!input) return;
+
+    const playerCode = input.value.trim().toUpperCase();
+
+    if (!playerCode) {
+      this.showMessage("Enter your Player Code to continue.", false);
       return;
     }
 
+    if (button) {
+      button.disabled = true;
+      button.textContent = "CHECKING...";
+    }
+
+    google.script.run
+      .withSuccessHandler(result => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = "Continue";
+        }
+
+        if (!result || !result.success) {
+          this.showMessage(
+            result && result.message ? result.message : "Player not recognised.",
+            false
+          );
+          return;
+        }
+
+        const player = result.data || {};
+        localStorage.setItem(this.storageKey, player.playerCode || playerCode);
+        this.currentPlayer = player;
+        this.openApplication(player);
+      })
+      .withFailureHandler(error => {
+        if (button) {
+          button.disabled = false;
+          button.textContent = "Continue";
+        }
+
+        this.showMessage(
+          error && error.message ? error.message : "Unable to recognise player.",
+          false
+        );
+      })
+      .authenticatePlayerServer(playerCode);
+  },
+
+  continuePlayer() {
+    const savedCode = localStorage.getItem(this.storageKey);
+
+    if (savedCode) {
+      this.authenticateSavedPlayer(savedCode);
+      return;
+    }
+
+    this.showPlayerCodeLogin();
+  },
+
+  authenticateSavedPlayer(playerCode) {
     const button = document.getElementById("continueButton");
+
     if (button) {
       button.disabled = true;
       button.textContent = "LOADING...";
@@ -149,14 +208,16 @@ const PLTT = {
 
         if (!result || !result.success) {
           localStorage.removeItem(this.storageKey);
-          this.showMessage(
-            result && result.message ? result.message : "Player could not be recognised.",
-            false
-          );
+          this.currentPlayer = null;
+          this.showPlayerCodeLogin();
           return;
         }
 
         this.currentPlayer = result.data || {};
+        localStorage.setItem(
+          this.storageKey,
+          this.currentPlayer.playerCode || playerCode
+        );
         this.openApplication(this.currentPlayer);
       })
       .withFailureHandler(error => {
@@ -170,11 +231,85 @@ const PLTT = {
           false
         );
       })
-      .authenticatePlayerServer(savedCode);
+      .authenticatePlayerServer(playerCode);
+  },
+
+  showPlayerCodeLogin() {
+    const existing = document.getElementById("playerCodeLogin");
+
+    if (existing) {
+      existing.hidden = false;
+      existing.querySelector("input")?.focus();
+      return;
+    }
+
+    const card = document.querySelector("#publicView .register-card");
+    if (!card) return;
+
+    const login = document.createElement("div");
+    login.id = "playerCodeLogin";
+    login.className = "player-code-login";
+    login.innerHTML = `
+      <div class="divider"><span>Player Login</span></div>
+      <input id="returningPlayerCode" type="text" maxlength="12" placeholder="Enter Player Code" autocomplete="off">
+      <button type="button" id="returningLoginButton" class="secondary">Continue with Player Code</button>
+    `;
+
+    card.appendChild(login);
+
+    const input = document.getElementById("returningPlayerCode");
+    const button = document.getElementById("returningLoginButton");
+
+    input.addEventListener("input", () => {
+      input.value = input.value.toUpperCase();
+    });
+
+    button.addEventListener("click", () => {
+      const value = input.value.trim().toUpperCase();
+
+      if (!value) {
+        this.showMessage("Enter your Player Code to continue.", false);
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = "CHECKING...";
+
+      google.script.run
+        .withSuccessHandler(result => {
+          button.disabled = false;
+          button.textContent = "Continue with Player Code";
+
+          if (!result || !result.success) {
+            this.showMessage(
+              result && result.message ? result.message : "Player not recognised.",
+              false
+            );
+            return;
+          }
+
+          const player = result.data || {};
+          localStorage.setItem(this.storageKey, player.playerCode || value);
+          this.currentPlayer = player;
+          this.openApplication(player);
+        })
+        .withFailureHandler(error => {
+          button.disabled = false;
+          button.textContent = "Continue with Player Code";
+          this.showMessage(
+            error && error.message ? error.message : "Unable to recognise player.",
+            false
+          );
+        })
+        .authenticatePlayerServer(value);
+    });
+
+    input.focus();
   },
 
   checkRememberedPlayer() {
     const savedCode = localStorage.getItem(this.storageKey);
+
     if (!savedCode) return;
 
     google.script.run
@@ -185,6 +320,10 @@ const PLTT = {
         }
 
         this.currentPlayer = result.data || {};
+        localStorage.setItem(
+          this.storageKey,
+          this.currentPlayer.playerCode || savedCode
+        );
         this.openApplication(this.currentPlayer);
       })
       .withFailureHandler(() => {
@@ -196,6 +335,7 @@ const PLTT = {
   openApplication(player) {
     const publicView = document.getElementById("publicView");
     const appView = document.getElementById("appView");
+
     if (!publicView || !appView) return;
 
     publicView.hidden = true;
@@ -215,43 +355,25 @@ const PLTT = {
   showAppView(view) {
     const title = document.getElementById("appPageTitle");
     const content = document.getElementById("appContent");
-    if (!title || !content) return;
 
-    this.currentView = view;
+    if (!title || !content) return;
 
     document.querySelectorAll(".app-nav-item").forEach(button => {
       button.classList.toggle("active", button.dataset.view === view);
     });
 
     const views = {
-      dashboard: {
-        title: "Dashboard",
-        html: this.dashboardMarkup()
-      },
-      predictions: {
-        title: "Predictions",
-        html: this.predictionsMarkup()
-      },
-      leaderboard: {
-        title: "Leaderboard",
-        html: this.leaderboardPlaceholder()
-      },
-      fixtures: {
-        title: "Fixtures",
-        html: this.fixturesPlaceholder()
-      },
-      rules: {
-        title: "Rules",
-        html: this.rulesPlaceholder()
-      }
+      dashboard: { title: "Dashboard", html: this.dashboardMarkup() },
+      predictions: { title: "Predictions", html: this.predictionsPlaceholder() },
+      leaderboard: { title: "Leaderboard", html: this.leaderboardPlaceholder() },
+      fixtures: { title: "Fixtures", html: this.fixturesPlaceholder() },
+      rules: { title: "Rules", html: this.rulesPlaceholder() }
     };
 
     const selected = views[view] || views.dashboard;
-
     title.textContent = selected.title;
     content.innerHTML = selected.html;
-
-    this.bindDynamicActions(view);
+    this.bindDynamicActions();
   },
 
   dashboardMarkup() {
@@ -265,10 +387,9 @@ const PLTT = {
         <article class="app-card accent">
           <p class="season">GAMEWEEK 1</p>
           <h2>Make your predictions</h2>
-          <p>Predict the exact score for every published fixture.</p>
+          <p>Your prediction card will appear here once the fixtures are published.</p>
           <button class="app-action" data-action="predictions">OPEN PREDICTIONS</button>
         </article>
-
         <article class="app-card">
           <p class="season">YOUR SEASON</p>
           <h2>Current standing</h2>
@@ -278,13 +399,11 @@ const PLTT = {
             <div class="app-stat"><strong>${gameweeks}</strong><span>Gameweeks</span></div>
           </div>
         </article>
-
         <article class="app-card">
           <h2>Leaderboard</h2>
           <p>See how you are performing against the competition.</p>
           <button class="secondary app-card-action" data-action="leaderboard">VIEW LEADERBOARD</button>
         </article>
-
         <article class="app-card">
           <h2>Fixtures</h2>
           <p>Check the upcoming Premier League fixtures before locking your picks.</p>
@@ -294,145 +413,14 @@ const PLTT = {
     `;
   },
 
-  predictionsMarkup() {
+  predictionsPlaceholder() {
     return `
-      <div class="prediction-centre">
-        <div class="app-card accent prediction-hero">
-          <div>
-            <p class="season">PREDICTION CENTRE</p>
-            <h2>Gameweek 1</h2>
-            <p>Predict the <strong>exact score</strong> for every fixture. Your picks lock when the match kicks off.</p>
-          </div>
-          <div class="prediction-progress">
-            <strong id="predictionCount">0 / 0</strong>
-            <span>completed</span>
-          </div>
-        </div>
-
-        <div id="predictionFixtures" class="prediction-list">
-          <div class="app-card">
-            <h2>Loading fixtures...</h2>
-            <p>Preparing the Gameweek 1 prediction card.</p>
-          </div>
-        </div>
-
-        <div class="prediction-footer app-card">
-          <button id="savePredictionsButton" class="app-action" disabled>SAVE PREDICTIONS</button>
-          <div id="predictionMessage" class="prediction-message"></div>
-        </div>
-      </div>
+      <article class="app-card accent">
+        <p class="season">PREDICTION CENTRE</p>
+        <h2>Your predictions are coming next.</h2>
+        <p>The next development step will load the published Gameweek fixtures here and allow you to save and submit your picks.</p>
+      </article>
     `;
-  },
-
-  loadPredictionFixtures() {
-    const container = document.getElementById("predictionFixtures");
-    if (!container) return;
-
-    google.script.run
-      .withSuccessHandler(fixtures => {
-        this.currentFixtures = Array.isArray(fixtures) ? fixtures : [];
-        this.renderPredictionFixtures();
-      })
-      .withFailureHandler(error => {
-        container.innerHTML = `
-          <div class="app-card">
-            <h2>Fixtures not available</h2>
-            <p>${this.escapeHtml(error && error.message ? error.message : "Unable to load fixtures.")}</p>
-          </div>
-        `;
-      })
-      .getPredictionFixtures();
-  },
-
-  renderPredictionFixtures() {
-    const container = document.getElementById("predictionFixtures");
-    const saveButton = document.getElementById("savePredictionsButton");
-    const count = document.getElementById("predictionCount");
-    if (!container) return;
-
-    if (!this.currentFixtures.length) {
-      container.innerHTML = `
-        <div class="app-card">
-          <p class="season">GAMEWEEK 1</p>
-          <h2>No fixtures published yet</h2>
-          <p>The prediction centre will populate automatically when fixtures are available in the Fixtures sheet.</p>
-        </div>
-      `;
-      if (count) count.textContent = "0 / 0";
-      if (saveButton) saveButton.disabled = true;
-      return;
-    }
-
-    container.innerHTML = this.currentFixtures.map((fixture, index) => {
-      const homeCode = fixture.homeTeamCode || fixture.homeCode || "";
-      const awayCode = fixture.awayTeamCode || fixture.awayCode || "";
-      const home = window.PLTTTeams && window.PLTTTeams[homeCode]
-        ? window.PLTTTeams[homeCode]
-        : { name: fixture.homeTeam || fixture.home || homeCode, crestUrl: "" };
-      const away = window.PLTTTeams && window.PLTTTeams[awayCode]
-        ? window.PLTTTeams[awayCode]
-        : { name: fixture.awayTeam || fixture.away || awayCode, crestUrl: "" };
-
-      return `
-        <article class="prediction-card" data-fixture-index="${index}">
-          <div class="fixture-meta">
-            <span>${this.escapeHtml(fixture.dateLabel || fixture.date || "Gameweek 1")}</span>
-            <span>${this.escapeHtml(fixture.kickoffLabel || fixture.kickoff || "")}</span>
-          </div>
-
-          <div class="prediction-teams">
-            <div class="prediction-team home-team">
-              ${home.crestUrl ? `<img src="${this.escapeAttribute(home.crestUrl)}" alt="">` : `<span class="team-badge-fallback">${this.escapeHtml((home.name || "?").slice(0,1))}</span>`}
-              <strong>${this.escapeHtml(home.name || "Home")}</strong>
-            </div>
-
-            <div class="score-inputs">
-              <input class="score-input" data-side="home" data-index="${index}" type="number" min="0" max="20" inputmode="numeric" aria-label="${this.escapeAttribute((home.name || "Home") + " predicted goals")}">
-              <span>-</span>
-              <input class="score-input" data-side="away" data-index="${index}" type="number" min="0" max="20" inputmode="numeric" aria-label="${this.escapeAttribute((away.name || "Away") + " predicted goals")}">
-            </div>
-
-            <div class="prediction-team away-team">
-              <strong>${this.escapeHtml(away.name || "Away")}</strong>
-              ${away.crestUrl ? `<img src="${this.escapeAttribute(away.crestUrl)}" alt="">` : `<span class="team-badge-fallback">${this.escapeHtml((away.name || "?").slice(0,1))}</span>`}
-            </div>
-          </div>
-        </article>
-      `;
-    }).join("");
-
-    if (saveButton) saveButton.disabled = false;
-    this.bindPredictionInputs();
-    this.updatePredictionCount();
-  },
-
-  bindPredictionInputs() {
-    document.querySelectorAll(".score-input").forEach(input => {
-      input.addEventListener("input", () => {
-        if (input.value === "") {
-          input.value = "";
-        } else {
-          const value = Math.max(0, Math.min(20, Number(input.value)));
-          input.value = String(value);
-        }
-        this.updatePredictionCount();
-      });
-    });
-  },
-
-  updatePredictionCount() {
-    const count = document.getElementById("predictionCount");
-    const fixtures = this.currentFixtures.length;
-    if (!count) return;
-
-    let complete = 0;
-    for (let i = 0; i < fixtures; i++) {
-      const home = document.querySelector(`.score-input[data-index="${i}"][data-side="home"]`);
-      const away = document.querySelector(`.score-input[data-index="${i}"][data-side="away"]`);
-      if (home && away && home.value !== "" && away.value !== "") complete++;
-    }
-
-    count.textContent = `${complete} / ${fixtures}`;
   },
 
   leaderboardPlaceholder() {
@@ -454,7 +442,7 @@ const PLTT = {
         <p class="season">FIXTURES</p>
         <h2>Premier League fixtures</h2>
         <div class="app-placeholder-list">
-          <div class="app-placeholder-item"><strong>Fixture feed</strong><span>Fixtures API integration will supply the published gameweeks.</span></div>
+          <div class="app-placeholder-item"><strong>Fixture feed</strong><span>Fixtures API integration is the next backend feature.</span></div>
         </div>
       </article>
     `;
@@ -466,7 +454,7 @@ const PLTT = {
         <p class="season">RULES</p>
         <h2>How PLTT works</h2>
         <div class="app-placeholder-list">
-          <div class="app-placeholder-item"><strong>Predict</strong><span>Submit an exact score for every published fixture before kick-off.</span></div>
+          <div class="app-placeholder-item"><strong>Predict</strong><span>Submit your picks before the relevant deadline.</span></div>
           <div class="app-placeholder-item"><strong>Score</strong><span>Points are awarded according to the competition scoring rules.</span></div>
           <div class="app-placeholder-item"><strong>Compete</strong><span>Climb the weekly and season leaderboard.</span></div>
         </div>
@@ -474,20 +462,15 @@ const PLTT = {
     `;
   },
 
-  bindDynamicActions(view) {
+  bindDynamicActions() {
     document.querySelectorAll("[data-action]").forEach(button => {
       button.addEventListener("click", () => this.showAppView(button.dataset.action));
     });
-
-    if (view === "predictions") {
-      this.loadPredictionFixtures();
-    }
   },
 
   logout() {
     localStorage.removeItem(this.storageKey);
     this.currentPlayer = null;
-    this.currentFixtures = [];
 
     const publicView = document.getElementById("publicView");
     const appView = document.getElementById("appView");
@@ -495,29 +478,23 @@ const PLTT = {
     if (appView) appView.hidden = true;
     if (publicView) publicView.hidden = false;
 
-    this.showAppView("dashboard");
+    const message = document.getElementById("message");
+    if (message) {
+      message.textContent = "You have been logged out.";
+      message.className = "success";
+    }
+
+    const login = document.getElementById("playerCodeLogin");
+    if (login) login.remove();
+
     window.scrollTo(0, 0);
   },
 
   showMessage(text, success) {
     const element = document.getElementById("message");
     if (!element) return;
-
     element.textContent = text;
     element.className = success ? "success" : "error";
-  },
-
-  escapeHtml(value) {
-    return String(value == null ? "" : value)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
-  },
-
-  escapeAttribute(value) {
-    return this.escapeHtml(value);
   }
 };
 
