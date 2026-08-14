@@ -2,9 +2,9 @@
 /**********************************************************************
  * PLTT Platform
  * JS.html
- * Version: 0.4.2.7
+ * Version: 0.4.2.8
  *
- * Release: Client runtime stabilisation
+ * Release: Login Stabilisation Release
  * F001 - Player Registration
  * F002 - Player Recognition
  * F003 - Application Shell Navigation
@@ -15,8 +15,11 @@
  * - Automatic login uses the remembered Player Code on page load.
  * - Manual Continue always uses the dedicated returning-player field.
  * - Both paths call authenticatePlayerServer().
- * - Public button handlers are explicitly exposed on window so Apps Script
- *   HTML inline handlers and sandboxed frames can resolve them reliably.
+ *
+ * Diagnostics:
+ * - Login flow stages are logged with the [PLTT AUTH] prefix.
+ * - DOM lookups are checked before use.
+ * - Callback and application-shell errors are surfaced with stack traces.
  **********************************************************************/
 
 (function (window, document) {
@@ -26,170 +29,284 @@
     storageKey: "PLTT_PLAYER_CODE",
     currentPlayer: null,
 
+    log(stage, details) {
+      try {
+        console.log("[PLTT AUTH] " + stage, details === undefined ? "" : details);
+      } catch (e) {}
+    },
+
+    error(stage, error) {
+      try {
+        console.error("[PLTT AUTH] " + stage, error);
+        if (error && error.stack) console.error(error.stack);
+      } catch (e) {}
+    },
+
+    requireElement(id) {
+      const element = document.getElementById(id);
+      if (!element) {
+        this.error("MISSING_ELEMENT", new Error("Missing element: #" + id));
+      }
+      return element;
+    },
+
     init() {
-      this.setupPlayerInputs();
-      this.setupNavigation();
-      this.setupPublicButtons();
-      this.animatePublicView();
-      this.checkRememberedPlayer();
+      try {
+        this.log("INIT_START");
+        this.setupPlayerInputs();
+        this.setupNavigation();
+        this.setupPublicButtons();
+        this.animatePublicView();
+        this.checkRememberedPlayer();
+        this.log("INIT_COMPLETE");
+      } catch (error) {
+        this.error("INIT_FAILED", error);
+      }
     },
 
     setupPlayerInputs() {
-      const inputs = [
-        document.getElementById("playerCode"),
-        document.getElementById("returningPlayerCode")
-      ];
+      try {
+        const inputs = [
+          this.requireElement("playerCode"),
+          this.requireElement("returningPlayerCode")
+        ];
 
-      inputs.forEach(input => {
-        if (!input || input.dataset.plttBound === "1") return;
+        inputs.forEach(input => {
+          if (!input || input.dataset.plttBound === "1") return;
 
-        input.dataset.plttBound = "1";
-        input.addEventListener("input", () => {
-          input.value = input.value.toUpperCase();
+          input.dataset.plttBound = "1";
+          input.addEventListener("input", () => {
+            input.value = input.value.toUpperCase();
+          });
+
+          input.addEventListener("keydown", event => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+
+            try {
+              if (input.id === "returningPlayerCode") {
+                this.log("RETURNING_ENTER");
+                this.manualLogin();
+                return;
+              }
+
+              const displayName = this.requireElement("displayName");
+              if (displayName && displayName.value.trim()) {
+                this.register();
+              }
+            } catch (error) {
+              this.error("INPUT_KEYDOWN_FAILED", error);
+            }
+          });
         });
 
-        input.addEventListener("keydown", event => {
-          if (event.key !== "Enter") return;
-          event.preventDefault();
+        ["displayName", "mobile"].forEach(id => {
+          const input = this.requireElement(id);
+          if (!input || input.dataset.plttBound === "1") return;
 
-          if (input.id === "returningPlayerCode") {
-            this.manualLogin();
-            return;
-          }
-
-          const displayName = document.getElementById("displayName");
-          if (displayName && displayName.value.trim()) {
-            this.register();
-          }
+          input.dataset.plttBound = "1";
+          input.addEventListener("keydown", event => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            try {
+              this.register();
+            } catch (error) {
+              this.error("REGISTER_KEYDOWN_FAILED", error);
+            }
+          });
         });
-      });
-
-      ["displayName", "mobile"].forEach(id => {
-        const input = document.getElementById(id);
-        if (!input || input.dataset.plttBound === "1") return;
-
-        input.dataset.plttBound = "1";
-        input.addEventListener("keydown", event => {
-          if (event.key !== "Enter") return;
-          event.preventDefault();
-          this.register();
-        });
-      });
+      } catch (error) {
+        this.error("INPUT_BINDING_FAILED", error);
+      }
     },
 
     setupPublicButtons() {
-      const registerButton = document.getElementById("registerButton");
-      const loginButton = document.getElementById("returningLoginButton");
-      const logoutButton = document.querySelector(".app-logout");
+      try {
+        const registerButton = this.requireElement("registerButton");
+        const loginButton = this.requireElement("returningLoginButton");
+        const logoutButton = document.querySelector(".app-logout");
 
-      if (registerButton && registerButton.dataset.plttBound !== "1") {
-        registerButton.dataset.plttBound = "1";
-        registerButton.addEventListener("click", () => this.register());
-      }
+        if (registerButton && registerButton.dataset.plttBound !== "1") {
+          registerButton.dataset.plttBound = "1";
+          registerButton.addEventListener("click", () => {
+            this.log("REGISTER_BUTTON_CLICK");
+            try {
+              this.register();
+            } catch (error) {
+              this.error("REGISTER_CLICK_FAILED", error);
+            }
+          });
+        }
 
-      if (loginButton && loginButton.dataset.plttBound !== "1") {
-        loginButton.dataset.plttBound = "1";
-        loginButton.addEventListener("click", () => this.manualLogin());
-      }
+        if (loginButton && loginButton.dataset.plttBound !== "1") {
+          loginButton.dataset.plttBound = "1";
+          loginButton.addEventListener("click", () => {
+            this.log("CONTINUE_BUTTON_CLICK");
+            try {
+              this.manualLogin();
+            } catch (error) {
+              this.error("CONTINUE_CLICK_FAILED", error);
+            }
+          });
+        }
 
-      if (logoutButton && logoutButton.dataset.plttBound !== "1") {
-        logoutButton.dataset.plttBound = "1";
-        logoutButton.addEventListener("click", () => this.logout());
+        if (logoutButton && logoutButton.dataset.plttBound !== "1") {
+          logoutButton.dataset.plttBound = "1";
+          logoutButton.addEventListener("click", () => {
+            this.log("LOGOUT_CLICK");
+            try {
+              this.logout();
+            } catch (error) {
+              this.error("LOGOUT_CLICK_FAILED", error);
+            }
+          });
+        }
+
+        this.log("BUTTON_BINDING_COMPLETE", {
+          register: !!registerButton,
+          continue: !!loginButton,
+          logout: !!logoutButton
+        });
+      } catch (error) {
+        this.error("BUTTON_BINDING_FAILED", error);
       }
     },
 
     setupNavigation() {
-      document.querySelectorAll(".app-nav-item").forEach(button => {
-        if (button.dataset.plttBound === "1") return;
-        button.dataset.plttBound = "1";
-        button.addEventListener("click", () => {
-          this.showAppView(button.dataset.view);
+      try {
+        const buttons = document.querySelectorAll(".app-nav-item");
+        this.log("NAVIGATION_BINDING", "count=" + buttons.length);
+
+        buttons.forEach(button => {
+          if (button.dataset.plttBound === "1") return;
+          button.dataset.plttBound = "1";
+          button.addEventListener("click", () => {
+            try {
+              this.log("NAVIGATION_CLICK", button.dataset.view);
+              this.showAppView(button.dataset.view);
+            } catch (error) {
+              this.error("NAVIGATION_CLICK_FAILED", error);
+            }
+          });
         });
-      });
+      } catch (error) {
+        this.error("NAVIGATION_BINDING_FAILED", error);
+      }
     },
 
     animatePublicView() {
-      const hero = document.querySelector("#publicView .hero-content");
-      if (!hero) return;
+      try {
+        const hero = document.querySelector("#publicView .hero-content");
+        if (!hero) return;
 
-      hero.style.opacity = "0";
-      hero.style.transform = "translateY(20px)";
+        hero.style.opacity = "0";
+        hero.style.transform = "translateY(20px)";
 
-      requestAnimationFrame(() => {
-        hero.style.transition = "opacity .8s ease, transform .8s ease";
-        hero.style.opacity = "1";
-        hero.style.transform = "translateY(0)";
-      });
+        requestAnimationFrame(() => {
+          hero.style.transition = "opacity .8s ease, transform .8s ease";
+          hero.style.opacity = "1";
+          hero.style.transform = "translateY(0)";
+        });
+      } catch (error) {
+        this.error("ANIMATION_FAILED", error);
+      }
     },
 
     register() {
-      const button = document.getElementById("registerButton");
-      const displayName = document.getElementById("displayName");
-      const playerCode = document.getElementById("playerCode");
-      const mobile = document.getElementById("mobile");
+      try {
+        const button = this.requireElement("registerButton");
+        const displayName = this.requireElement("displayName");
+        const playerCode = this.requireElement("playerCode");
+        const mobile = this.requireElement("mobile");
 
-      if (!button || !displayName || !playerCode || !mobile) return;
+        if (!button || !displayName || !playerCode || !mobile) {
+          this.showMessage("Registration form could not be loaded.", false);
+          return;
+        }
 
-      const payload = {
-        displayName: displayName.value.trim(),
-        playerCode: playerCode.value.trim().toUpperCase(),
-        mobile: mobile.value.trim()
-      };
+        const payload = {
+          displayName: displayName.value.trim(),
+          playerCode: playerCode.value.trim().toUpperCase(),
+          mobile: mobile.value.trim()
+        };
 
-      if (!payload.displayName || !payload.playerCode || !payload.mobile) {
-        this.showMessage("Please complete all registration fields.", false);
-        return;
+        this.log("REGISTER_REQUEST", payload.playerCode);
+
+        if (!payload.displayName || !payload.playerCode || !payload.mobile) {
+          this.showMessage("Please complete all registration fields.", false);
+          return;
+        }
+
+        button.disabled = true;
+        button.textContent = "REGISTERING...";
+
+        google.script.run
+          .withSuccessHandler(result => {
+            try {
+              this.log("REGISTER_SUCCESS_CALLBACK", result);
+              button.disabled = false;
+              button.textContent = "ENTER COMPETITION";
+
+              if (!result || result.success !== true || !result.data) {
+                this.showMessage(
+                  result && result.message ? result.message : "Registration failed.",
+                  false
+                );
+                return;
+              }
+
+              const player = result.data;
+              const code = player.playerCode || payload.playerCode;
+
+              this.currentPlayer = player;
+              localStorage.setItem(this.storageKey, code);
+              this.openApplication(player);
+            } catch (error) {
+              this.error("REGISTER_SUCCESS_HANDLER_FAILED", error);
+            }
+          })
+          .withFailureHandler(error => {
+            try {
+              this.error("REGISTER_FAILURE_CALLBACK", error);
+              button.disabled = false;
+              button.textContent = "ENTER COMPETITION";
+              this.showMessage(
+                error && error.message ? error.message : "Unable to register player.",
+                false
+              );
+            } catch (handlerError) {
+              this.error("REGISTER_FAILURE_HANDLER_FAILED", handlerError);
+            }
+          })
+          .registerPlayerServer(payload);
+      } catch (error) {
+        this.error("REGISTER_FAILED", error);
+        this.showMessage("Unable to register player.", false);
       }
-
-      button.disabled = true;
-      button.textContent = "REGISTERING...";
-
-      google.script.run
-        .withSuccessHandler(result => {
-          button.disabled = false;
-          button.textContent = "ENTER COMPETITION";
-
-          if (!result || result.success !== true || !result.data) {
-            this.showMessage(
-              result && result.message ? result.message : "Registration failed.",
-              false
-            );
-            return;
-          }
-
-          const player = result.data;
-          const code = player.playerCode || payload.playerCode;
-
-          this.currentPlayer = player;
-          localStorage.setItem(this.storageKey, code);
-          this.openApplication(player);
-        })
-        .withFailureHandler(error => {
-          button.disabled = false;
-          button.textContent = "ENTER COMPETITION";
-          this.showMessage(
-            error && error.message ? error.message : "Unable to register player.",
-            false
-          );
-        })
-        .registerPlayerServer(payload);
     },
 
     manualLogin() {
-      const input = document.getElementById("returningPlayerCode");
-      const button = document.getElementById("returningLoginButton");
-      const code = input ? input.value.trim().toUpperCase() : "";
+      try {
+        const input = this.requireElement("returningPlayerCode");
+        const button = this.requireElement("returningLoginButton");
+        const code = input ? input.value.trim().toUpperCase() : "";
 
-      if (!code) {
-        this.showMessage("Enter your Player Code to continue.", false);
-        if (input) input.focus();
-        return;
+        this.log("PLAYER_CODE_READ", code);
+
+        if (!code) {
+          this.showMessage("Enter your Player Code to continue.", false);
+          if (input) input.focus();
+          return;
+        }
+
+        this.authenticate(code, {
+          manual: true,
+          button: button
+        });
+      } catch (error) {
+        this.error("MANUAL_LOGIN_FAILED", error);
+        this.showMessage("Unable to start login.", false);
       }
-
-      this.authenticate(code, {
-        manual: true,
-        button: button
-      });
     },
 
     continuePlayer() {
@@ -199,128 +316,188 @@
     authenticate(playerCode, options = {}) {
       const cleanedCode = String(playerCode || "").trim().toUpperCase();
 
-      if (!cleanedCode) {
-        this.showMessage("Enter your Player Code to continue.", false);
-        return;
-      }
+      try {
+        this.log("AUTH_START", cleanedCode);
 
-      const button = options.button || document.getElementById("returningLoginButton");
+        if (!cleanedCode) {
+          this.showMessage("Enter your Player Code to continue.", false);
+          return;
+        }
 
-      if (button) {
-        button.disabled = true;
-        button.textContent = "CHECKING...";
-      }
+        const button = options.button || this.requireElement("returningLoginButton");
 
-      google.script.run
-        .withSuccessHandler(result => {
-          if (button) {
-            button.disabled = false;
-            button.textContent = "CONTINUE";
-          }
+        if (button) {
+          button.disabled = true;
+          button.textContent = "CHECKING...";
+        }
 
-          if (!result || result.success !== true || !result.data) {
-            if (options.remembered) {
-              localStorage.removeItem(this.storageKey);
+        this.log("AUTH_REQUEST", cleanedCode);
+
+        google.script.run
+          .withSuccessHandler(result => {
+            try {
+              this.log("AUTH_SUCCESS_CALLBACK", result);
+
+              if (button) {
+                button.disabled = false;
+                button.textContent = "CONTINUE";
+              }
+
+              if (!result || result.success !== true || !result.data) {
+                if (options.remembered) {
+                  localStorage.removeItem(this.storageKey);
+                }
+
+                this.currentPlayer = null;
+                this.log("AUTH_REJECTED", result);
+                this.showMessage(
+                  result && result.message ? result.message : "Player Code not recognised.",
+                  false
+                );
+                return;
+              }
+
+              const player = result.data;
+              const canonicalCode = player.playerCode || cleanedCode;
+
+              this.log("AUTH_ACCEPTED", canonicalCode);
+              this.currentPlayer = player;
+              localStorage.setItem(this.storageKey, canonicalCode);
+              this.openApplication(player);
+            } catch (error) {
+              this.error("AUTH_SUCCESS_HANDLER_FAILED", error);
+              this.showMessage("Unable to complete login.", false);
             }
+          })
+          .withFailureHandler(error => {
+            try {
+              this.error("AUTH_FAILURE_CALLBACK", error);
 
-            this.currentPlayer = null;
-            this.showMessage(
-              result && result.message ? result.message : "Player Code not recognised.",
-              false
-            );
-            return;
-          }
+              if (button) {
+                button.disabled = false;
+                button.textContent = "CONTINUE";
+              }
 
-          const player = result.data;
-          const canonicalCode = player.playerCode || cleanedCode;
+              if (options.remembered) {
+                localStorage.removeItem(this.storageKey);
+              }
 
-          this.currentPlayer = player;
-          localStorage.setItem(this.storageKey, canonicalCode);
-          this.openApplication(player);
-        })
-        .withFailureHandler(error => {
-          if (button) {
-            button.disabled = false;
-            button.textContent = "CONTINUE";
-          }
-
-          if (options.remembered) {
-            localStorage.removeItem(this.storageKey);
-          }
-
-          this.currentPlayer = null;
-          this.showMessage(
-            error && error.message ? error.message : "Unable to authenticate player.",
-            false
-          );
-        })
-        .authenticatePlayerServer(cleanedCode);
+              this.currentPlayer = null;
+              this.showMessage(
+                error && error.message ? error.message : "Unable to authenticate player.",
+                false
+              );
+            } catch (handlerError) {
+              this.error("AUTH_FAILURE_HANDLER_FAILED", handlerError);
+            }
+          })
+          .authenticatePlayerServer(cleanedCode);
+      } catch (error) {
+        this.error("AUTH_REQUEST_FAILED", error);
+        this.showMessage("Unable to start authentication.", false);
+      }
     },
 
     checkRememberedPlayer() {
-      const savedCode = localStorage.getItem(this.storageKey);
-      if (!savedCode) return;
+      try {
+        const savedCode = localStorage.getItem(this.storageKey);
+        this.log("REMEMBERED_CODE", savedCode || "NONE");
+        if (!savedCode) return;
 
-      this.authenticate(savedCode, { remembered: true });
+        this.authenticate(savedCode, { remembered: true });
+      } catch (error) {
+        this.error("REMEMBERED_LOGIN_FAILED", error);
+      }
     },
 
     switchPlayer() {
-      localStorage.removeItem(this.storageKey);
-      this.currentPlayer = null;
+      try {
+        localStorage.removeItem(this.storageKey);
+        this.currentPlayer = null;
 
-      const input = document.getElementById("returningPlayerCode");
-      if (input) {
-        input.value = "";
-        input.focus();
+        const input = this.requireElement("returningPlayerCode");
+        if (input) {
+          input.value = "";
+          input.focus();
+        }
+
+        this.showMessage("Enter the Player Code for the player you want to use.", true);
+      } catch (error) {
+        this.error("SWITCH_PLAYER_FAILED", error);
       }
-
-      this.showMessage("Enter the Player Code for the player you want to use.", true);
     },
 
     openApplication(player) {
-      const publicView = document.getElementById("publicView");
-      const appView = document.getElementById("appView");
+      try {
+        this.log("OPEN_APPLICATION_START", player);
 
-      if (!publicView || !appView) {
-        this.showMessage("Application view could not be loaded.", false);
-        return;
+        const publicView = this.requireElement("publicView");
+        const appView = this.requireElement("appView");
+
+        this.log("VIEW_STATE_BEFORE", {
+          publicExists: !!publicView,
+          appExists: !!appView,
+          publicHidden: publicView ? publicView.hidden : null,
+          appHidden: appView ? appView.hidden : null
+        });
+
+        if (!publicView || !appView) {
+          throw new Error("Application views are missing.");
+        }
+
+        publicView.hidden = true;
+        appView.hidden = false;
+
+        this.log("VIEW_STATE_AFTER", {
+          publicHidden: publicView.hidden,
+          appHidden: appView.hidden
+        });
+
+        const playerName = player && player.displayName ? player.displayName : "Player";
+        const appPlayerName = this.requireElement("appPlayerName");
+        const appWelcome = this.requireElement("appWelcome");
+
+        if (appPlayerName) appPlayerName.textContent = playerName;
+        if (appWelcome) appWelcome.textContent = "Welcome back, " + playerName + ".";
+
+        this.showAppView("dashboard");
+        this.log("DASHBOARD_RENDER_COMPLETE");
+        window.scrollTo(0, 0);
+      } catch (error) {
+        this.error("OPEN_APPLICATION_FAILED", error);
+        this.showMessage("Unable to open your dashboard.", false);
       }
-
-      publicView.hidden = true;
-      appView.hidden = false;
-
-      const playerName = player && player.displayName ? player.displayName : "Player";
-      const appPlayerName = document.getElementById("appPlayerName");
-      const appWelcome = document.getElementById("appWelcome");
-
-      if (appPlayerName) appPlayerName.textContent = playerName;
-      if (appWelcome) appWelcome.textContent = "Welcome back, " + playerName + ".";
-
-      this.showAppView("dashboard");
-      window.scrollTo(0, 0);
     },
 
     showAppView(view) {
-      const title = document.getElementById("appPageTitle");
-      const content = document.getElementById("appContent");
-      if (!title || !content) return;
+      try {
+        const title = this.requireElement("appPageTitle");
+        const content = this.requireElement("appContent");
+        if (!title || !content) throw new Error("Application content elements are missing.");
 
-      document.querySelectorAll(".app-nav-item").forEach(button => {
-        button.classList.toggle("active", button.dataset.view === view);
-      });
+        this.log("DASHBOARD_RENDER_START", view);
 
-      const views = {
-        dashboard: { title: "Dashboard", html: this.dashboardMarkup() },
-        predictions: { title: "Predictions", html: this.predictionsPlaceholder() },
-        leaderboard: { title: "Leaderboard", html: this.leaderboardPlaceholder() },
-        fixtures: { title: "Fixtures", html: this.fixturesPlaceholder() },
-        rules: { title: "Rules", html: this.rulesPlaceholder() }
-      };
+        document.querySelectorAll(".app-nav-item").forEach(button => {
+          button.classList.toggle("active", button.dataset.view === view);
+        });
 
-      const selected = views[view] || views.dashboard;
-      title.textContent = selected.title;
-      content.innerHTML = selected.html;
-      this.bindDynamicActions();
+        const views = {
+          dashboard: { title: "Dashboard", html: this.dashboardMarkup() },
+          predictions: { title: "Predictions", html: this.predictionsPlaceholder() },
+          leaderboard: { title: "Leaderboard", html: this.leaderboardPlaceholder() },
+          fixtures: { title: "Fixtures", html: this.fixturesPlaceholder() },
+          rules: { title: "Rules", html: this.rulesPlaceholder() }
+        };
+
+        const selected = views[view] || views.dashboard;
+        title.textContent = selected.title;
+        content.innerHTML = selected.html;
+        this.bindDynamicActions();
+        this.log("DASHBOARD_RENDER_END", selected.title);
+      } catch (error) {
+        this.error("SHOW_APP_VIEW_FAILED", error);
+        this.showMessage("Unable to load the application area.", false);
+      }
     },
 
     dashboardMarkup() {
@@ -364,102 +541,91 @@
     },
 
     predictionsPlaceholder() {
-      return `
-        <article class="app-card accent">
-          <p class="season">PREDICTION CENTRE</p>
-          <h2>Your predictions are coming next.</h2>
-          <p>The next development step will load the published Gameweek fixtures here and allow you to save and submit your picks.</p>
-        </article>
-      `;
+      return `<article class="app-card accent"><p class="season">PREDICTION CENTRE</p><h2>Your predictions are coming next.</h2><p>The next development step will load the published Gameweek fixtures here and allow you to save and submit your picks.</p></article>`;
     },
 
     leaderboardPlaceholder() {
-      return `
-        <article class="app-card">
-          <p class="season">LEADERBOARD</p>
-          <h2>Standings</h2>
-          <div class="app-placeholder-list">
-            <div class="app-placeholder-item"><strong>Leaderboard engine</strong><span>Waiting for scored predictions.</span></div>
-            <div class="app-placeholder-item"><strong>Your ranking</strong><span>Your live position will appear here.</span></div>
-          </div>
-        </article>
-      `;
+      return `<article class="app-card"><p class="season">LEADERBOARD</p><h2>Standings</h2><div class="app-placeholder-list"><div class="app-placeholder-item"><strong>Leaderboard engine</strong><span>Waiting for scored predictions.</span></div><div class="app-placeholder-item"><strong>Your ranking</strong><span>Your live position will appear here.</span></div></div></article>`;
     },
 
     fixturesPlaceholder() {
-      return `
-        <article class="app-card">
-          <p class="season">FIXTURES</p>
-          <h2>Premier League fixtures</h2>
-          <div class="app-placeholder-list">
-            <div class="app-placeholder-item"><strong>Fixture feed</strong><span>Fixtures API integration is the next backend feature.</span></div>
-          </div>
-        </article>
-      `;
+      return `<article class="app-card"><p class="season">FIXTURES</p><h2>Premier League fixtures</h2><div class="app-placeholder-list"><div class="app-placeholder-item"><strong>Fixture feed</strong><span>Fixtures API integration is the next backend feature.</span></div></div></article>`;
     },
 
     rulesPlaceholder() {
-      return `
-        <article class="app-card">
-          <p class="season">RULES</p>
-          <h2>How PLTT works</h2>
-          <div class="app-placeholder-list">
-            <div class="app-placeholder-item"><strong>Predict</strong><span>Submit your picks before the relevant deadline.</span></div>
-            <div class="app-placeholder-item"><strong>Score</strong><span>Points are awarded according to the competition scoring rules.</span></div>
-            <div class="app-placeholder-item"><strong>Compete</strong><span>Climb the weekly and season leaderboard.</span></div>
-          </div>
-        </article>
-      `;
+      return `<article class="app-card"><p class="season">RULES</p><h2>How PLTT works</h2><div class="app-placeholder-list"><div class="app-placeholder-item"><strong>Predict</strong><span>Submit your picks before the relevant deadline.</span></div><div class="app-placeholder-item"><strong>Score</strong><span>Points are awarded according to the competition scoring rules.</span></div><div class="app-placeholder-item"><strong>Compete</strong><span>Climb the weekly and season leaderboard.</span></div></div></article>`;
     },
 
     bindDynamicActions() {
-      document.querySelectorAll("[data-action]").forEach(button => {
-        button.addEventListener("click", () => this.showAppView(button.dataset.action));
-      });
+      try {
+        document.querySelectorAll("[data-action]").forEach(button => {
+          if (button.dataset.plttBound === "1") return;
+          button.dataset.plttBound = "1";
+          button.addEventListener("click", () => {
+            try {
+              this.showAppView(button.dataset.action);
+            } catch (error) {
+              this.error("DYNAMIC_ACTION_FAILED", error);
+            }
+          });
+        });
+      } catch (error) {
+        this.error("DYNAMIC_BIND_FAILED", error);
+      }
     },
 
     logout() {
-      localStorage.removeItem(this.storageKey);
-      this.currentPlayer = null;
+      try {
+        this.log("LOGOUT_START");
+        localStorage.removeItem(this.storageKey);
+        this.currentPlayer = null;
 
-      const publicView = document.getElementById("publicView");
-      const appView = document.getElementById("appView");
+        const publicView = this.requireElement("publicView");
+        const appView = this.requireElement("appView");
 
-      if (appView) appView.hidden = true;
-      if (publicView) publicView.hidden = false;
+        if (appView) appView.hidden = true;
+        if (publicView) publicView.hidden = false;
 
-      const returningInput = document.getElementById("returningPlayerCode");
-      if (returningInput) returningInput.value = "";
+        const returningInput = this.requireElement("returningPlayerCode");
+        if (returningInput) returningInput.value = "";
 
-      this.showMessage("You have been logged out.", true);
-      window.scrollTo(0, 0);
+        this.showMessage("You have been logged out.", true);
+        this.log("LOGOUT_COMPLETE");
+        window.scrollTo(0, 0);
+      } catch (error) {
+        this.error("LOGOUT_FAILED", error);
+      }
     },
 
     showMessage(text, success) {
-      const element = document.getElementById("message");
-      if (!element) return;
-      element.textContent = text;
-      element.className = success ? "success" : "error";
+      try {
+        const element = document.getElementById("message");
+        if (!element) {
+          this.error("MESSAGE_ELEMENT_MISSING", new Error("Missing element: #message"));
+          return;
+        }
+        element.textContent = text;
+        element.className = success ? "success" : "error";
+      } catch (error) {
+        this.error("MESSAGE_FAILED", error);
+      }
     }
   };
 
-  function registerPlayer() {
-    PLTT.register();
-  }
-
-  function continuePlayer() {
-    PLTT.continuePlayer();
-  }
-
-  function logoutPlayer() {
-    PLTT.logout();
-  }
-
   window.PLTT = PLTT;
-  window.registerPlayer = registerPlayer;
-  window.continuePlayer = continuePlayer;
-  window.logoutPlayer = logoutPlayer;
+  window.registerPlayer = function () { return PLTT.register(); };
+  window.continuePlayer = function () { return PLTT.continuePlayer(); };
+  window.logoutPlayer = function () { return PLTT.logout(); };
 
-  document.addEventListener("DOMContentLoaded", () => PLTT.init());
+  document.addEventListener("DOMContentLoaded", () => {
+    try {
+      PLTT.log("DOM_CONTENT_LOADED");
+      PLTT.init();
+    } catch (error) {
+      PLTT.error("DOM_INIT_FAILED", error);
+    }
+  });
+
+  PLTT.log("SCRIPT_EVALUATED");
 })(window, document);
 </script>
