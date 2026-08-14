@@ -1,264 +1,112 @@
 <script>
-/**********************************************************************
- * PLTT Platform
- * JS.html
- * Version: 0.3.2
- *
- * Feature:
- * F001 - Player Registration
- * F002 - Player Recognition
- **********************************************************************/
-
-const PLTT = {
-
-  STORAGE_KEY: "PLTT_PLAYER_CODE",
-
-  init() {
-
-    this.initialiseInputs();
-    this.animateHero();
-    this.checkRememberedPlayer();
-
-  },
-
-  initialiseInputs() {
-
-    const playerCode = document.getElementById("playerCode");
-
-    if (playerCode) {
-
-      playerCode.addEventListener("input", function () {
-        this.value = this.value.toUpperCase();
-      });
-
-    }
-
-    [
-      "displayName",
-      "playerCode",
-      "mobile"
-    ].forEach(id => {
-
-      const input = document.getElementById(id);
-
-      if (!input) return;
-
-      input.addEventListener("keydown", e => {
-
-        if (e.key === "Enter") {
-
-          e.preventDefault();
-
-          PLTT.register();
-
-        }
-
-      });
-
+document.addEventListener("DOMContentLoaded", () => {
+  // Automatically uppercase player code
+  const playerCode = document.getElementById("playerCode");
+  if (playerCode) {
+    playerCode.addEventListener("input", e => {
+      e.target.value = e.target.value.toUpperCase();
     });
+  }
 
-  },
+  // Allow Enter to submit registration
+  ["displayName", "playerCode", "mobile"].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        registerPlayer();
+      }
+    });
+  });
 
-  animateHero() {
-
-    const hero = document.querySelector(".hero-content");
-
-    if (!hero) return;
-
+  // Fade hero content in
+  const hero = document.querySelector(".hero-content");
+  if (hero) {
     hero.style.opacity = "0";
     hero.style.transform = "translateY(20px)";
-
     requestAnimationFrame(() => {
-
       hero.style.transition = "all .8s ease";
       hero.style.opacity = "1";
       hero.style.transform = "translateY(0)";
-
     });
-
-  },
-
-  register() {
-
-    const button = document.getElementById("registerButton");
-
-    const payload = {
-
-      displayName:
-        document.getElementById("displayName").value.trim(),
-
-      playerCode:
-        document.getElementById("playerCode").value.trim().toUpperCase(),
-
-      mobile:
-        document.getElementById("mobile").value.trim()
-
-    };
-
-    if (
-      payload.displayName === "" ||
-      payload.playerCode === "" ||
-      payload.mobile === ""
-    ) {
-
-      this.showMessage(
-        "Please complete all fields.",
-        false
-      );
-
-      return;
-
-    }
-
-    button.disabled = true;
-    button.textContent = "REGISTERING...";
-
-    google.script.run
-
-      .withSuccessHandler(result => {
-
-        button.disabled = false;
-        button.textContent = "ENTER COMPETITION";
-
-        if (!result.success) {
-
-          this.showMessage(result.message, false);
-
-          return;
-
-        }
-
-        localStorage.setItem(
-          this.STORAGE_KEY,
-          result.data.playerCode
-        );
-
-        this.showMessage(
-          "Registration Successful",
-          true
-        );
-
-        setTimeout(() => {
-
-          this.authenticate();
-
-        }, 800);
-
-      })
-
-      .withFailureHandler(err => {
-
-        button.disabled = false;
-        button.textContent = "ENTER COMPETITION";
-
-        this.showMessage(
-          err.message,
-          false
-        );
-
-      })
-
-      .registerPlayerServer(payload);
-
-  },
-
-  authenticate() {
-
-    const playerCode = localStorage.getItem(
-      this.STORAGE_KEY
-    );
-
-    if (!playerCode) return;
-
-    google.script.run
-
-      .withSuccessHandler(result => {
-
-        if (!result.success) {
-
-          localStorage.removeItem(
-            this.STORAGE_KEY
-          );
-
-          return;
-
-        }
-
-        this.showMessage(
-          "Welcome back " +
-          result.data.displayName,
-          true
-        );
-
-        // Dashboard arrives in F002.2
-
-      })
-
-      .withFailureHandler(() => {
-
-        localStorage.removeItem(
-          this.STORAGE_KEY
-        );
-
-      })
-
-      .authenticatePlayerServer(playerCode);
-
-  },
-
-  checkRememberedPlayer() {
-
-    if (
-      localStorage.getItem(
-        this.STORAGE_KEY
-      )
-    ) {
-
-      this.authenticate();
-
-    }
-
-  },
-
-  logout() {
-
-    localStorage.removeItem(
-      this.STORAGE_KEY
-    );
-
-    location.reload();
-
-  },
-
-  showMessage(message, success) {
-
-    const box =
-      document.getElementById("message");
-
-    if (!box) return;
-
-    box.textContent = message;
-
-    box.className =
-      success
-        ? "success"
-        : "error";
-
+  }
+});
+
+/**
+ * Called from Register button.
+ * Expects registerPlayerServer() in Code.gs
+ */
+function registerPlayer() {
+
+  const btn = document.getElementById("registerButton");
+  const msg = document.getElementById("message");
+
+  const payload = {
+    displayName: document.getElementById("displayName").value.trim(),
+    playerCode: document.getElementById("playerCode").value.trim().toUpperCase(),
+    mobile: document.getElementById("mobile").value.trim()
+  };
+
+  if (!payload.displayName || !payload.playerCode || !payload.mobile) {
+    showMessage("Please complete all fields.", false);
+    return;
   }
 
-};
+  btn.disabled = true;
+  btn.textContent = "Registering...";
 
-function registerPlayer() {
-  PLTT.register();
+  google.script.run
+    .withSuccessHandler(result => {
+      btn.disabled = false;
+      btn.textContent = "ENTER COMPETITION";
+
+      if (result && result.success) {
+        showMessage(result.message || "Registration successful.", true);
+      } else {
+        showMessage(result?.message || "Registration failed.", false);
+      }
+    })
+    .withFailureHandler(err => {
+      btn.disabled = false;
+      btn.textContent = "ENTER COMPETITION";
+      showMessage(err.message || "Unexpected error.", false);
+    })
+    .registerPlayerServer(payload);
 }
 
+/**
+ * Continue existing player.
+ * Expects continuePlayerServer() in Code.gs
+ */
 function continuePlayer() {
-  PLTT.authenticate();
+
+  const btn = document.getElementById("continueButton");
+  btn.disabled = true;
+  btn.textContent = "Loading...";
+
+  google.script.run
+    .withSuccessHandler(url => {
+      btn.disabled = false;
+      btn.textContent = "Continue";
+
+      if (url) {
+        window.location.href = url;
+      } else {
+        showMessage("No saved player found.", false);
+      }
+    })
+    .withFailureHandler(err => {
+      btn.disabled = false;
+      btn.textContent = "Continue";
+      showMessage(err.message || "Unable to continue.", false);
+    })
+    .continuePlayerServer();
 }
 
-document.addEventListener(
-  "DOMContentLoaded",
-  () => PLTT.init()
-);
-
+function showMessage(text, success) {
+  const el = document.getElementById("message");
+  el.textContent = text;
+  el.className = success ? "success" : "error";
+}
 </script>
