@@ -2,15 +2,15 @@
 /**********************************************************************
  * PLTT Platform
  * JS.html
- * Version: 0.4.2.2
+ * Version: 0.4.2.3
  *
  * F001 - Player Registration
  * F002 - Player Recognition
  *
- * Authentication is deliberately simple:
+ * Authentication uses one path only:
  * - Player Code is the permanent player identity.
  * - localStorage remembers the code on the current browser.
- * - All authentication is performed by authenticatePlayerServer().
+ * - All authentication calls authenticatePlayerServer().
  **********************************************************************/
 
 const PLTT = {
@@ -19,22 +19,26 @@ const PLTT = {
 
   init() {
     this.setupPlayerCodeInput();
-    this.setupEnterKeys();
+    this.setupRegistrationEnterKeys();
+    this.setupReturningLogin();
     this.setupNavigation();
     this.animatePublicView();
-    this.prepareReturningPlayerArea();
     this.checkRememberedPlayer();
   },
 
   setupPlayerCodeInput() {
-    const input = document.getElementById("playerCode");
-    if (!input) return;
-    input.addEventListener("input", () => {
-      input.value = input.value.toUpperCase();
+    [
+      document.getElementById("playerCode"),
+      document.getElementById("returningPlayerCode")
+    ].forEach(input => {
+      if (!input) return;
+      input.addEventListener("input", () => {
+        input.value = input.value.toUpperCase();
+      });
     });
   },
 
-  setupEnterKeys() {
+  setupRegistrationEnterKeys() {
     ["displayName", "playerCode", "mobile"].forEach(id => {
       const input = document.getElementById(id);
       if (!input) return;
@@ -44,13 +48,35 @@ const PLTT = {
         event.preventDefault();
 
         if (id === "playerCode" && !document.getElementById("displayName")?.value.trim()) {
-          this.loginWithEnteredPlayerCode();
+          this.loginWithPlayerCodeInput();
           return;
         }
 
         this.register();
       });
     });
+  },
+
+  setupReturningLogin() {
+    const button = document.getElementById("continueButton");
+    const input = document.getElementById("returningPlayerCode");
+
+    if (button && !button.dataset.bound) {
+      button.dataset.bound = "1";
+      button.addEventListener("click", () => this.continuePlayer());
+    }
+
+    if (input && !input.dataset.bound) {
+      input.dataset.bound = "1";
+      input.addEventListener("input", () => {
+        input.value = input.value.toUpperCase();
+      });
+      input.addEventListener("keydown", event => {
+        if (event.key !== "Enter") return;
+        event.preventDefault();
+        this.continuePlayer();
+      });
+    }
   },
 
   setupNavigation() {
@@ -73,58 +99,12 @@ const PLTT = {
     });
   },
 
-  prepareReturningPlayerArea() {
-    const card = document.querySelector("#publicView .register-card");
-    const continueButton = document.getElementById("continueButton");
-    if (!card || !continueButton) return;
-
-    let login = document.getElementById("playerCodeLogin");
-
-    if (!login) {
-      login = document.createElement("div");
-      login.id = "playerCodeLogin";
-      login.className = "player-code-login";
-      login.innerHTML = `
-        <div class="divider"><span>Already Registered?</span></div>
-        <input id="returningPlayerCode" type="text" maxlength="12" placeholder="Player Code" autocomplete="off">
-        <button type="button" id="returningLoginButton" class="secondary">CONTINUE</button>
-        <button type="button" id="switchPlayerButton" class="link-button" hidden>Not you? Switch Player</button>
-      `;
-      card.appendChild(login);
-    }
-
-    const input = document.getElementById("returningPlayerCode");
-    const button = document.getElementById("returningLoginButton");
-    const switchButton = document.getElementById("switchPlayerButton");
-
-    if (input && !input.dataset.bound) {
-      input.dataset.bound = "1";
-      input.addEventListener("input", () => {
-        input.value = input.value.toUpperCase();
-      });
-      input.addEventListener("keydown", event => {
-        if (event.key !== "Enter") return;
-        event.preventDefault();
-        this.loginWithEnteredPlayerCode();
-      });
-    }
-
-    if (button && !button.dataset.bound) {
-      button.dataset.bound = "1";
-      button.addEventListener("click", () => this.loginWithEnteredPlayerCode());
-    }
-
-    if (switchButton && !switchButton.dataset.bound) {
-      switchButton.dataset.bound = "1";
-      switchButton.addEventListener("click", () => this.switchPlayer());
-    }
-  },
-
   register() {
     const button = document.getElementById("registerButton");
     const displayName = document.getElementById("displayName");
     const playerCode = document.getElementById("playerCode");
     const mobile = document.getElementById("mobile");
+
     if (!button || !displayName || !playerCode || !mobile) return;
 
     const payload = {
@@ -147,87 +127,104 @@ const PLTT = {
         button.textContent = "ENTER COMPETITION";
 
         if (!result || !result.success) {
-          this.showMessage(result && result.message ? result.message : "Registration failed.", false);
+          this.showMessage(
+            result && result.message ? result.message : "Registration failed.",
+            false
+          );
           return;
         }
 
         const player = result.data || {};
-        const savedCode = player.playerCode || payload.playerCode;
-        localStorage.setItem(this.storageKey, savedCode);
+        const code = player.playerCode || payload.playerCode;
+
         this.currentPlayer = player;
+        localStorage.setItem(this.storageKey, code);
         this.openApplication(player);
       })
       .withFailureHandler(error => {
         button.disabled = false;
         button.textContent = "ENTER COMPETITION";
-        this.showMessage(error && error.message ? error.message : "Unable to register player.", false);
+        this.showMessage(
+          error && error.message ? error.message : "Unable to register player.",
+          false
+        );
       })
       .registerPlayerServer(payload);
   },
 
-  loginWithEnteredPlayerCode() {
+  loginWithPlayerCodeInput() {
     const input = document.getElementById("returningPlayerCode");
-    const button = document.getElementById("returningLoginButton");
-    const value = input ? input.value.trim().toUpperCase() : "";
 
-    if (!value) {
+    if (!input) {
       this.showMessage("Enter your Player Code to continue.", false);
       return;
     }
 
-    if (button) {
-      button.disabled = true;
-      button.textContent = "CHECKING...";
-    }
-
-    this.authenticate(value, {
-      source: "manual",
-      onComplete: () => {
-        if (button) {
-          button.disabled = false;
-          button.textContent = "CONTINUE";
-        }
-      }
-    });
+    this.login(input.value);
   },
 
-  authenticate(playerCode, options = {}) {
+  continuePlayer() {
+    const savedCode = localStorage.getItem(this.storageKey);
+
+    if (savedCode) {
+      this.login(savedCode, { remembered: true });
+      return;
+    }
+
+    this.loginWithPlayerCodeInput();
+  },
+
+  login(playerCode, options = {}) {
     const cleanedCode = String(playerCode || "").trim().toUpperCase();
+    const button = document.getElementById("returningLoginButton");
+    const oldContinueButton = document.getElementById("continueButton");
 
     if (!cleanedCode) {
       this.showMessage("Enter your Player Code to continue.", false);
-      if (options.onComplete) options.onComplete();
       return;
     }
 
+    [button, oldContinueButton].forEach(control => {
+      if (!control) return;
+      control.disabled = true;
+      control.textContent = "CHECKING...";
+    });
+
     google.script.run
       .withSuccessHandler(result => {
-        if (!result || !result.success) {
-          if (options.source === "remembered") {
+        [button, oldContinueButton].forEach(control => {
+          if (!control) return;
+          control.disabled = false;
+          control.textContent = control.id === "returningLoginButton" ? "CONTINUE" : "Continue";
+        });
+
+        if (!result || !result.success || !result.data) {
+          if (options.remembered) {
             localStorage.removeItem(this.storageKey);
           }
-
           this.currentPlayer = null;
           this.showMessage(
             result && result.message ? result.message : "Player Code not recognised.",
             false
           );
-
-          if (options.onComplete) options.onComplete();
           return;
         }
 
-        const player = result.data || {};
+        const player = result.data;
         const canonicalCode = player.playerCode || cleanedCode;
 
-        localStorage.setItem(this.storageKey, canonicalCode);
         this.currentPlayer = player;
+        localStorage.setItem(this.storageKey, canonicalCode);
         this.openApplication(player);
-
-        if (options.onComplete) options.onComplete();
       })
       .withFailureHandler(error => {
-        if (options.source === "remembered") {
+        [button, oldContinueButton].forEach(control => {
+          if (!control) return;
+          control.disabled = false;
+          control.textContent = control.id === "returningLoginButton" ? "CONTINUE" : "Continue";
+        });
+
+        if (options.remembered) {
           localStorage.removeItem(this.storageKey);
         }
 
@@ -236,38 +233,15 @@ const PLTT = {
           error && error.message ? error.message : "Unable to authenticate player.",
           false
         );
-
-        if (options.onComplete) options.onComplete();
       })
       .authenticatePlayerServer(cleanedCode);
-  },
-
-  continuePlayer() {
-    const savedCode = localStorage.getItem(this.storageKey);
-
-    if (savedCode) {
-      this.authenticate(savedCode, { source: "remembered" });
-      return;
-    }
-
-    this.loginWithEnteredPlayerCode();
-  },
-
-  showPlayerCodeLogin() {
-    const login = document.getElementById("playerCodeLogin");
-    if (!login) return;
-
-    login.hidden = false;
-
-    const input = document.getElementById("returningPlayerCode");
-    if (input) input.focus();
   },
 
   checkRememberedPlayer() {
     const savedCode = localStorage.getItem(this.storageKey);
     if (!savedCode) return;
 
-    this.authenticate(savedCode, { source: "remembered" });
+    this.login(savedCode, { remembered: true });
   },
 
   switchPlayer() {
@@ -275,16 +249,13 @@ const PLTT = {
     this.currentPlayer = null;
 
     const input = document.getElementById("returningPlayerCode");
-    const switchButton = document.getElementById("switchPlayerButton");
-
     if (input) {
       input.value = "";
       input.focus();
     }
 
-    if (switchButton) {
-      switchButton.hidden = true;
-    }
+    const switchButton = document.getElementById("switchPlayerButton");
+    if (switchButton) switchButton.hidden = true;
 
     this.showMessage("Enter the Player Code for the player you want to use.", true);
   },
@@ -293,20 +264,20 @@ const PLTT = {
     const publicView = document.getElementById("publicView");
     const appView = document.getElementById("appView");
 
-    if (!publicView || !appView) return;
+    if (!publicView || !appView) {
+      this.showMessage("Application view could not be loaded.", false);
+      return;
+    }
 
     publicView.hidden = true;
     appView.hidden = false;
 
-    const playerName = player && player.displayName ? player.displayName : "Player";
+    const playerName = player.displayName || "Player";
     const appPlayerName = document.getElementById("appPlayerName");
     const appWelcome = document.getElementById("appWelcome");
 
     if (appPlayerName) appPlayerName.textContent = playerName;
     if (appWelcome) appWelcome.textContent = "Welcome back, " + playerName + ".";
-
-    const switchButton = document.getElementById("switchPlayerButton");
-    if (switchButton) switchButton.hidden = false;
 
     this.showAppView("dashboard");
     window.scrollTo(0, 0);
@@ -437,17 +408,13 @@ const PLTT = {
     if (appView) appView.hidden = true;
     if (publicView) publicView.hidden = false;
 
-    const message = document.getElementById("message");
-    if (message) {
-      message.textContent = "You have been logged out.";
-      message.className = "success";
-    }
+    const returningInput = document.getElementById("returningPlayerCode");
+    if (returningInput) returningInput.value = "";
 
-    const input = document.getElementById("returningPlayerCode");
     const switchButton = document.getElementById("switchPlayerButton");
-    if (input) input.value = "";
     if (switchButton) switchButton.hidden = true;
 
+    this.showMessage("You have been logged out.", true);
     window.scrollTo(0, 0);
   },
 
