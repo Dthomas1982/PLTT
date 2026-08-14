@@ -2,15 +2,17 @@
 /**********************************************************************
  * PLTT Platform
  * JS.html
- * Version: 0.4.2.5
+ * Version: 0.4.2.6
  *
  * F001 - Player Registration
  * F002 - Player Recognition
  *
- * Authentication:
+ * Authentication rules:
  * - Player Code is the permanent player identity.
  * - localStorage is convenience only.
- * - Manual login always uses the dedicated returning-player field.
+ * - Automatic login uses the remembered Player Code on page load.
+ * - Manual Continue always uses the dedicated returning-player field.
+ * - Both paths call authenticatePlayerServer().
  **********************************************************************/
 
 const PLTT = {
@@ -25,54 +27,65 @@ const PLTT = {
   },
 
   setupPlayerInputs() {
-    [
+    const inputs = [
       document.getElementById("playerCode"),
       document.getElementById("returningPlayerCode")
-    ].forEach(input => {
-      if (!input) return;
+    ];
+
+    inputs.forEach(input => {
+      if (!input || input.dataset.plttBound === "1") return;
+
+      input.dataset.plttBound = "1";
       input.addEventListener("input", () => {
         input.value = input.value.toUpperCase();
       });
+
       input.addEventListener("keydown", event => {
         if (event.key !== "Enter") return;
         event.preventDefault();
+
         if (input.id === "returningPlayerCode") {
           this.manualLogin();
-        } else if (document.getElementById("displayName")?.value.trim()) {
+          return;
+        }
+
+        const displayName = document.getElementById("displayName");
+        if (displayName && displayName.value.trim()) {
           this.register();
-        } else {
-          this.manualLogin();
         }
       });
     });
 
     ["displayName", "mobile"].forEach(id => {
       const input = document.getElementById(id);
-      if (!input) return;
+      if (!input || input.dataset.plttBound === "1") return;
+
+      input.dataset.plttBound = "1";
       input.addEventListener("keydown", event => {
         if (event.key !== "Enter") return;
         event.preventDefault();
         this.register();
       });
     });
-
-    const loginButton = document.getElementById("returningLoginButton");
-    if (loginButton) {
-      loginButton.addEventListener("click", () => this.manualLogin());
-    }
   },
 
   setupNavigation() {
     document.querySelectorAll(".app-nav-item").forEach(button => {
-      button.addEventListener("click", () => this.showAppView(button.dataset.view));
+      if (button.dataset.plttBound === "1") return;
+      button.dataset.plttBound = "1";
+      button.addEventListener("click", () => {
+        this.showAppView(button.dataset.view);
+      });
     });
   },
 
   animatePublicView() {
     const hero = document.querySelector("#publicView .hero-content");
     if (!hero) return;
+
     hero.style.opacity = "0";
     hero.style.transform = "translateY(20px)";
+
     requestAnimationFrame(() => {
       hero.style.transition = "opacity .8s ease, transform .8s ease";
       hero.style.opacity = "1";
@@ -107,21 +120,28 @@ const PLTT = {
         button.disabled = false;
         button.textContent = "ENTER COMPETITION";
 
-        if (!result || !result.success || !result.data) {
-          this.showMessage(result?.message || "Registration failed.", false);
+        if (!result || result.success !== true || !result.data) {
+          this.showMessage(
+            result && result.message ? result.message : "Registration failed.",
+            false
+          );
           return;
         }
 
         const player = result.data;
         const code = player.playerCode || payload.playerCode;
-        localStorage.setItem(this.storageKey, code);
+
         this.currentPlayer = player;
+        localStorage.setItem(this.storageKey, code);
         this.openApplication(player);
       })
       .withFailureHandler(error => {
         button.disabled = false;
         button.textContent = "ENTER COMPETITION";
-        this.showMessage(error?.message || "Unable to register player.", false);
+        this.showMessage(
+          error && error.message ? error.message : "Unable to register player.",
+          false
+        );
       })
       .registerPlayerServer(payload);
   },
@@ -129,7 +149,6 @@ const PLTT = {
   manualLogin() {
     const input = document.getElementById("returningPlayerCode");
     const button = document.getElementById("returningLoginButton");
-
     const code = input ? input.value.trim().toUpperCase() : "";
 
     if (!code) {
@@ -145,13 +164,8 @@ const PLTT = {
   },
 
   continuePlayer() {
-    const savedCode = localStorage.getItem(this.storageKey);
-
-    if (savedCode) {
-      this.authenticate(savedCode, { remembered: true });
-      return;
-    }
-
+    // Manual Continue must always use the code entered in the dedicated
+    // returning-player field. Remembered login is handled only on page load.
     this.manualLogin();
   },
 
@@ -181,9 +195,10 @@ const PLTT = {
           if (options.remembered) {
             localStorage.removeItem(this.storageKey);
           }
+
           this.currentPlayer = null;
           this.showMessage(
-            result?.message || "Player Code not recognised.",
+            result && result.message ? result.message : "Player Code not recognised.",
             false
           );
           return;
@@ -208,7 +223,7 @@ const PLTT = {
 
         this.currentPlayer = null;
         this.showMessage(
-          error?.message || "Unable to authenticate player.",
+          error && error.message ? error.message : "Unable to authenticate player.",
           false
         );
       })
@@ -247,7 +262,7 @@ const PLTT = {
     publicView.hidden = true;
     appView.hidden = false;
 
-    const playerName = player.displayName || "Player";
+    const playerName = player && player.displayName ? player.displayName : "Player";
     const appPlayerName = document.getElementById("appPlayerName");
     const appWelcome = document.getElementById("appWelcome");
 
@@ -293,8 +308,9 @@ const PLTT = {
           <p class="season">GAMEWEEK 1</p>
           <h2>Make your predictions</h2>
           <p>Your prediction card will appear here once the fixtures are published.</p>
-          <button class="app-action" data-action="predictions">OPEN PREDICTIONS</button>
+          <button class="app-action" type="button" data-action="predictions">OPEN PREDICTIONS</button>
         </article>
+
         <article class="app-card">
           <p class="season">YOUR SEASON</p>
           <h2>Current standing</h2>
@@ -304,15 +320,17 @@ const PLTT = {
             <div class="app-stat"><strong>${gameweeks}</strong><span>Gameweeks</span></div>
           </div>
         </article>
+
         <article class="app-card">
           <h2>Leaderboard</h2>
           <p>See how you are performing against the competition.</p>
-          <button class="secondary app-card-action" data-action="leaderboard">VIEW LEADERBOARD</button>
+          <button class="secondary app-card-action" type="button" data-action="leaderboard">VIEW LEADERBOARD</button>
         </article>
+
         <article class="app-card">
           <h2>Fixtures</h2>
           <p>Check the upcoming Premier League fixtures before locking your picks.</p>
-          <button class="secondary app-card-action" data-action="fixtures">VIEW FIXTURES</button>
+          <button class="secondary app-card-action" type="button" data-action="fixtures">VIEW FIXTURES</button>
         </article>
       </div>
     `;
