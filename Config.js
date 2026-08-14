@@ -1,20 +1,17 @@
 /**********************************************************************
  * PLTT Platform
  * Config.js
- * Version: 0.4.3.0
+ * Version: 0.5.0
  *
  * Release:
- * - Stable Authentication Baseline
- * - Production player registration and recognition
- * - Authentication complete
- *
- * Status:
- * Authentication Complete
+ * - Prediction Centre Phase 1
+ * - Fixture Display
+ * - Stable Authentication Foundation
  **********************************************************************/
 
 const APP = {
   NAME: "Premier League Top Tipster",
-  VERSION: "0.4.3.0",
+  VERSION: "0.5.0",
   SEASON: "2026/27",
   TIMEZONE: Session.getScriptTimeZone()
 };
