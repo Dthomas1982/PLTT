@@ -2,13 +2,12 @@
 /**********************************************************************
  * PLTT Platform
  * JS.html
- * Version: 0.4.3.0
+ * Version: 0.5.0
  *
  * Release:
- * - Stable Authentication Baseline
- * - Production player registration and recognition
- * - Unified client event handling
- * - Dashboard navigation completed
+ * - Prediction Centre Phase 1
+ * - Fixture Display
+ * - Stable Authentication Foundation
  *
  * Status:
  * Authentication Complete
@@ -303,7 +302,7 @@
 
       const views = {
         dashboard: { title: "Dashboard", html: this.dashboardMarkup() },
-        predictions: { title: "Predictions", html: this.predictionsPlaceholder() },
+        predictions: { title: "Predictions", html: this.predictionsPageMarkup() },
         leaderboard: { title: "Leaderboard", html: this.leaderboardPlaceholder() },
         fixtures: { title: "Fixtures", html: this.fixturesPlaceholder() },
         rules: { title: "Rules", html: this.rulesPlaceholder() }
@@ -312,6 +311,11 @@
       const selected = views[view] || views.dashboard;
       title.textContent = selected.title;
       content.innerHTML = selected.html;
+
+      if (view === "predictions") {
+        window.PREDICTION_CENTRE.load();
+      }
+
       this.bindDynamicActions();
     },
 
@@ -329,7 +333,6 @@
             <p>Your prediction card will appear here once the fixtures are published.</p>
             <button class="app-action" type="button" data-action="predictions">OPEN PREDICTIONS</button>
           </article>
-
           <article class="app-card">
             <p class="season">YOUR SEASON</p>
             <h2>Current standing</h2>
@@ -339,13 +342,11 @@
               <div class="app-stat"><strong>${gameweeks}</strong><span>Gameweeks</span></div>
             </div>
           </article>
-
           <article class="app-card">
             <h2>Leaderboard</h2>
             <p>See how you are performing against the competition.</p>
             <button class="secondary app-card-action" type="button" data-action="leaderboard">VIEW LEADERBOARD</button>
           </article>
-
           <article class="app-card">
             <h2>Fixtures</h2>
             <p>Check the upcoming Premier League fixtures before locking your picks.</p>
@@ -355,13 +356,15 @@
       `;
     },
 
-    predictionsPlaceholder() {
+    predictionsPageMarkup() {
       return `
-        <article class="app-card accent">
-          <p class="season">PREDICTION CENTRE</p>
-          <h2>Your predictions are coming next.</h2>
-          <p>The next development step will load the published Gameweek fixtures here and allow you to save and submit your picks.</p>
-        </article>
+        <section class="prediction-centre">
+          <article class="app-card accent">
+            <p class="season">PREDICTION CENTRE</p>
+            <h2>Loading fixtures…</h2>
+            <p>Please wait while the current Gameweek is loaded.</p>
+          </article>
+        </section>
       `;
     },
 
