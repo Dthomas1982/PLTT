@@ -1,12 +1,13 @@
 /**********************************************************************
  * PLTT Platform
  * PredictionCentre.js
- * Version: 0.5.0.1
+ * Version: 0.5.1
  *
  * Release:
- * - Data Layer Foundation
- * - Prediction Centre consumes enriched fixture/team data
- * - Teams sheet is the single source of truth
+ * - Prediction Centre Foundation
+ * - Dynamic Fixture Pipeline
+ * - Website Configuration
+ * - Teams Sheet data enrichment
  * - Stable Authentication Foundation
  *
  * Status:
@@ -22,15 +23,15 @@ const PREDICTION_CENTRE = {
     content.innerHTML = this.loadingMarkup();
 
     google.script.run
-      .withSuccessHandler(fixtures => {
-        this.render(Array.isArray(fixtures) ? fixtures : []);
+      .withSuccessHandler(data => {
+        this.render(data || { settings: {}, fixtures: [] });
       })
       .withFailureHandler(error => {
         content.innerHTML = this.errorMarkup(
           error && error.message ? error.message : 'Unable to load fixtures.'
         );
       })
-      .getPredictionCentreFixtures();
+      .getPredictionCentreData();
   },
 
   loadingMarkup() {
@@ -57,15 +58,18 @@ const PREDICTION_CENTRE = {
     `;
   },
 
-  render(fixtures) {
+  render(data) {
     const content = document.getElementById('appContent');
     if (!content) return;
+
+    const fixtures = Array.isArray(data.fixtures) ? data.fixtures : [];
+    const settings = data.settings || {};
 
     if (!fixtures.length) {
       content.innerHTML = `
         <section class="prediction-centre">
           <article class="app-card accent">
-            <p class="season">PREDICTION CENTRE</p>
+            <p class="season">${this.escapeHtml(settings.competitionName || 'PREDICTION CENTRE')}</p>
             <h2>No fixtures available.</h2>
             <p>There are no fixtures published for the current Gameweek.</p>
           </article>
@@ -82,15 +86,15 @@ const PREDICTION_CENTRE = {
     });
 
     const dates = Object.keys(groups);
-    const gameweek = fixtures[0].gameweekID || '';
+    const gameweek = settings.currentGameweek || fixtures[0].gameweekID || '';
 
     content.innerHTML = `
       <section class="prediction-centre">
         <div class="prediction-centre-header">
           <div>
-            <p class="season">GAMEWEEK ${this.escapeHtml(gameweek)}</p>
+            <p class="season">${this.escapeHtml(settings.competitionName || 'PREDICTION CENTRE')}</p>
             <h2>Prediction Centre</h2>
-            <p>Fixtures for the current Gameweek.</p>
+            <p>Gameweek ${this.escapeHtml(gameweek)}</p>
           </div>
           <div class="prediction-count">
             <strong>${fixtures.length}</strong>
@@ -113,27 +117,27 @@ const PREDICTION_CENTRE = {
   },
 
   fixtureMarkup(fixture) {
-    const home = fixture.homeTeam || {};
-    const away = fixture.awayTeam || {};
+    const home = fixture.home || {};
+    const away = fixture.away || {};
 
-    const homeBadge = home.badgeURL
-      ? `<img src="${this.escapeAttribute(home.badgeURL)}" alt="" class="fixture-badge">`
+    const homeBadge = home.badge
+      ? `<img src="${this.escapeAttribute(home.badge)}" alt="" class="fixture-badge">`
       : `<span class="fixture-badge-placeholder">H</span>`;
 
-    const awayBadge = away.badgeURL
-      ? `<img src="${this.escapeAttribute(away.badgeURL)}" alt="" class="fixture-badge">`
+    const awayBadge = away.badge
+      ? `<img src="${this.escapeAttribute(away.badge)}" alt="" class="fixture-badge">`
       : `<span class="fixture-badge-placeholder">A</span>`;
 
     return `
       <article class="prediction-fixture-card">
         <div class="fixture-meta">
-          <span>${this.escapeHtml(fixture.kickoff || 'Kick-off TBC')}</span>
+          <span>${this.escapeHtml(fixture.kickOff || 'Kick-off TBC')}</span>
           <span>${this.escapeHtml(fixture.status || 'Scheduled')}</span>
         </div>
 
         <div class="fixture-teams">
           <div class="fixture-team home">
-            <span>${this.escapeHtml(home.clubName || fixture.homeTeamID || 'Home team')}</span>
+            <span>${this.escapeHtml(home.name || 'Home team')}</span>
             ${homeBadge}
           </div>
 
@@ -141,7 +145,7 @@ const PREDICTION_CENTRE = {
 
           <div class="fixture-team away">
             ${awayBadge}
-            <span>${this.escapeHtml(away.clubName || fixture.awayTeamID || 'Away team')}</span>
+            <span>${this.escapeHtml(away.name || 'Away team')}</span>
           </div>
         </div>
       </article>
