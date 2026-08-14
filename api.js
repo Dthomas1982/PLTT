@@ -1,78 +1,65 @@
 /**********************************************************************
  * PLTT Platform
- * Api.gs
- * Version: 0.3.0
+ * Api.js
+ * Version: 0.4.2.1
  *
- * Bridge between HTML (google.script.run)
- * and the business logic in Players.gs
+ * F001 - Player Registration
+ * F002 - Player Recognition
+ *
+ * Player Code is the player's permanent login identity.
+ * Browser localStorage is used only for convenience; the Players sheet
+ * remains the source of truth.
  **********************************************************************/
 
-/**
- * Called from JS.html
- */
 function registerPlayerServer(payload) {
 
   if (!payload) {
     return errorResponse("No registration data received.");
   }
 
-  return registerPlayer(
+  const result = registerPlayer(
     payload.displayName,
     payload.playerCode,
     payload.mobile
   );
 
+  return result;
+
 }
 
-/**
- * Called when the user clicks
- * "Returning Player"
- */
-function continuePlayerServer() {
-
-  const cache = CacheService.getUserCache();
-
-  const playerCode = cache.get("PLAYER_CODE");
+function authenticatePlayerServer(playerCode) {
 
   if (!playerCode) {
-    return "";
+    return errorResponse("No Player Code supplied.");
   }
 
-  const result = authenticatePlayer(playerCode);
+  const cleanedCode = cleanPlayerCode(playerCode);
 
-  if (!result.success) {
-    cache.remove("PLAYER_CODE");
-    return "";
+  if (!isValidPlayerCode(cleanedCode)) {
+    return errorResponse("Invalid Player Code.");
   }
 
-  // Dashboard will come in F002
-  return "dashboard";
+  return authenticatePlayer(cleanedCode);
 
 }
 
-/**
- * Save player's code after successful registration.
- * This prepares us for automatic recognition.
- */
-function savePlayerSession(playerCode) {
+function continuePlayerServer(playerCode) {
 
-  CacheService
-    .getUserCache()
-    .put("PLAYER_CODE", cleanPlayerCode(playerCode), 21600); // 6 hours
-
-  return true;
+  return authenticatePlayerServer(playerCode);
 
 }
 
-/**
- * Clear current session.
- */
-function logoutPlayer() {
+function logoutPlayerServer() {
 
-  CacheService
-    .getUserCache()
-    .remove("PLAYER_CODE");
+  return successResponse("Logged out.");
 
-  return true;
+}
+
+function pingServer() {
+
+  return successResponse("PLTT API Online", {
+    version: APP.VERSION,
+    season: APP.SEASON
+  });
 
 }
