@@ -1,142 +1,111 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <base target="_top">
   <?!= include('CSS'); ?>
 </head>
 <body>
 
-<!--
-PLTT Premium Landing Page
-NOTE:
-This file is the foundation layout. It preserves the existing Apps Script
-hooks:
-displayName
-playerCode
-mobile
-registerPlayer()
-continuePlayer()
-message
-
-Replace hero artwork/background in CSS.html.
--->
-
-<header class="hero">
-  <div class="hero-overlay"></div>
-
-  <div class="hero-content">
-
-    <div class="brand">
-      <div class="tt-logo">TT</div>
-
-      <p class="season">PREMIER LEAGUE 2026/27</p>
-
-      <h1>Premier League<br>Top Tipster</h1>
-
-      <p class="tagline">
-        Predict. Compete. Win.
-      </p>
-
-      <p class="description">
-        Join the ultimate Premier League prediction competition.
-        Climb the leaderboard, beat your friends and become Champion.
-      </p>
-
-    </div>
-
-    <section class="register-card">
-
-      <h2>Enter The Competition</h2>
-
-      <input id="displayName"
-             type="text"
-             placeholder="Display Name">
-
-      <input id="playerCode"
-             type="text"
-             maxlength="12"
-             placeholder="Choose Player Code">
-
-      <input id="mobile"
-             type="tel"
-             placeholder="Mobile Number">
-
-      <button id="registerButton"
-              onclick="registerPlayer()">
-        ENTER COMPETITION
-      </button>
-
-      <div id="message"></div>
-
-      <div class="divider">
-        <span>Returning Player</span>
+<div id="publicView">
+  <header class="hero">
+    <div class="hero-content">
+      <div class="brand">
+        <div class="tt-logo">TT</div>
+        <p class="season">PREMIER LEAGUE 2026/27</p>
+        <h1>Premier League<br>Top Tipster</h1>
+        <p class="tagline">Predict. Compete. Win.</p>
+        <p class="description">
+          Join the ultimate Premier League prediction competition.
+          Climb the leaderboard, beat your friends and become Champion.
+        </p>
       </div>
 
-      <button id="continueButton"
-              class="secondary"
-              onclick="continuePlayer()">
-        Continue
-      </button>
+      <section class="register-card">
+        <h2>Enter The Competition</h2>
 
-    </section>
+        <input id="displayName" type="text" placeholder="Display Name" autocomplete="name">
+        <input id="playerCode" type="text" maxlength="12" placeholder="Choose Player Code" autocomplete="off">
+        <input id="mobile" type="tel" placeholder="Mobile Number" autocomplete="tel">
 
-  </div>
+        <button id="registerButton" onclick="registerPlayer()">
+          ENTER COMPETITION
+        </button>
 
-</header>
+        <div id="message"></div>
 
-<section class="features">
+        <div class="divider">
+          <span>Returning Player</span>
+        </div>
 
-  <div class="feature">
-    <h3>380</h3>
-    <p>Fixtures</p>
-  </div>
-
-  <div class="feature">
-    <h3>38</h3>
-    <p>Gameweeks</p>
-  </div>
-
-  <div class="feature">
-    <h3>Live</h3>
-    <p>Leaderboards</p>
-  </div>
-
-  <div class="feature">
-    <h3>Weekly</h3>
-    <p>Prizes</p>
-  </div>
-
-</section>
-
-<section class="promo">
-
-  <div class="promo-text">
-    <h2>The Ultimate Prediction Competition</h2>
-
-    <p>
-      Premium statistics, weekly champions,
-      season-long rankings and a professional
-      football experience.
-    </p>
-
-  </div>
-
-  <div class="promo-image">
-    <!-- Replace with new branded artwork -->
-    <div class="image-placeholder">
-      HERO ARTWORK
+        <button id="continueButton" class="secondary" onclick="continuePlayer()">
+          Continue
+        </button>
+      </section>
     </div>
+  </header>
+
+  <section class="features">
+    <div class="feature"><h3>Weekly</h3><p>Compete every Gameweek</p></div>
+    <div class="feature"><h3>Season</h3><p>Play for the overall title</p></div>
+    <div class="feature"><h3>Live</h3><p>Track the leaderboard</p></div>
+    <div class="feature"><h3>Fair</h3><p>Transparent scoring</p></div>
+  </section>
+
+  <section class="promo">
+    <div class="promo-text">
+      <p class="season">THE PLTT EXPERIENCE</p>
+      <h2>One season. Every prediction.</h2>
+      <p>
+        Predict the fixtures, manage your gameweeks and compete against your friends
+        throughout the Premier League season.
+      </p>
+    </div>
+    <div class="promo-image">
+      <div class="image-placeholder">PLTT</div>
+    </div>
+  </section>
+
+  <footer>
+    <p>© Premier League Top Tipster</p>
+  </footer>
+</div>
+
+<div id="appView" class="app-view" hidden>
+  <div class="app-shell">
+    <aside class="app-sidebar">
+      <div class="app-brand">
+        <div class="tt-logo small">TT</div>
+        <div>
+          <strong>PLTT</strong>
+          <span>2026/27</span>
+        </div>
+      </div>
+
+      <nav class="app-nav" aria-label="Application navigation">
+        <button class="app-nav-item active" data-view="dashboard">Dashboard</button>
+        <button class="app-nav-item" data-view="predictions">Predictions</button>
+        <button class="app-nav-item" data-view="leaderboard">Leaderboard</button>
+        <button class="app-nav-item" data-view="fixtures">Fixtures</button>
+        <button class="app-nav-item" data-view="rules">Rules</button>
+      </nav>
+
+      <button class="app-logout" onclick="logoutPlayer()">Log out</button>
+    </aside>
+
+    <main class="app-main">
+      <header class="app-header">
+        <div>
+          <p class="season">PLAYER AREA</p>
+          <h1 id="appPageTitle">Dashboard</h1>
+          <p id="appWelcome">Welcome back.</p>
+        </div>
+        <div class="app-player-pill" id="appPlayerName">Player</div>
+      </header>
+
+      <section id="appContent" class="app-content"></section>
+    </main>
   </div>
-
-</section>
-
-<footer>
-
-  <p>
-    © Premier League Top Tipster
-  </p>
-
-</footer>
+</div>
 
 <?!= include('JS'); ?>
 
