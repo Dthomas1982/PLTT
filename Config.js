@@ -5,9 +5,9 @@
  *
  * Release:
  * - Prediction Centre Foundation
- * - Dynamic Fixture Pipeline
  * - Website Configuration
- * - Data Layer Complete
+ * - Dynamic Fixture Pipeline
+ * - Google Sheets Data Layer
  * - Stable Authentication Foundation
  *
  * Status:
@@ -26,13 +26,15 @@ const SHEETS = {
   TEAMS: "Teams",
   GAMEWEEKS: "Gameweeks",
   FIXTURES: "Fixtures",
-  PREDICTIONS: "PredictionItems",
   PREDICTIONSETS: "PredictionSets",
+  PREDICTIONITEMS: "PredictionItems",
   PAYMENTS: "Payments",
   LEADERBOARD: "Leaderboard",
   WEBSITE: "Website",
+  VALIDATION: "Validation",
+  LOOKUPS: "Lookups",
   LOGS: "Logs",
-  SETTINGS: "Settings"
+  IMPORT: "Import"
 };
 
 const PLAYER = {
