@@ -1,7 +1,15 @@
 /**********************************************************************
  * PLTT Platform
  * Players.gs
- * Version: 2.0.0
+ * Version: 0.4.3.0
+ *
+ * Release:
+ * - Stable Authentication Baseline
+ * - Plain serializable player data returned to the client
+ * - Production player registration and recognition
+ *
+ * Status:
+ * Authentication Complete
  **********************************************************************/
 
 function registerPlayer(displayName, playerCode, mobile) {
@@ -90,21 +98,30 @@ function getPlayerByCode(playerCode){
 
   const row = findRow(SHEETS.PLAYERS,2,cleanPlayerCode(playerCode));
 
-  if(row==-1) return null;
+  if(row == -1) return null;
 
   const v = getSheet(SHEETS.PLAYERS).getRange(row,1,1,10).getValues()[0];
 
+  let registered = "";
+  if (v[4] !== "" && v[4] !== null && v[4] !== undefined) {
+    registered = Utilities.formatDate(
+      new Date(v[4]),
+      APP.TIMEZONE,
+      "yyyy-MM-dd HH:mm:ss"
+    );
+  }
+
   return {
-    playerID:v[0],
-    playerCode:v[1],
-    displayName:v[2],
-    mobile:v[3],
-    registered:v[4],
-    active:v[5],
-    notes:v[6],
-    seasonPoints:v[7],
-    seasonRank:v[8],
-    gameweeksPlayed:v[9]
+    playerID: String(v[0] || ""),
+    playerCode: String(v[1] || ""),
+    displayName: String(v[2] || ""),
+    mobile: String(v[3] || ""),
+    registered: registered,
+    active: Boolean(v[5]),
+    notes: String(v[6] || ""),
+    seasonPoints: Number(v[7] || 0),
+    seasonRank: Number(v[8] || 0),
+    gameweeksPlayed: Number(v[9] || 0)
   };
 
 }
