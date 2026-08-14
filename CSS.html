@@ -45,11 +45,18 @@ body::after{
  background:radial-gradient(circle,#d4af3720 0%,transparent 60%);
  animation:pulse 8s ease-in-out infinite;
  z-index:-1;
+ pointer-events:none;
 }
 
 @keyframes pulse{
-50%{transform:scale(1.15);opacity:.6}
+ 50%{transform:scale(1.15);opacity:.6}
 }
+
+button,input{font-family:inherit}
+
+button{border:0}
+
+[hidden]{display:none !important}
 
 .hero{
  min-height:100vh;
@@ -86,10 +93,18 @@ body::after{
  box-shadow:0 0 30px rgba(212,175,55,.45);
 }
 
+.tt-logo.small{
+ width:44px;
+ height:44px;
+ font-size:1rem;
+ box-shadow:none;
+ flex:0 0 auto;
+}
+
 .season{
  color:var(--gold2);
  letter-spacing:4px;
- font-size:.85rem;
+ font-size:.82rem;
 }
 
 .tagline{
@@ -130,6 +145,8 @@ input{
  transition:.25s;
 }
 
+input::placeholder{color:#8fa0bb}
+
 input:focus{
  outline:none;
  border-color:var(--gold);
@@ -139,7 +156,6 @@ input:focus{
 button{
  width:100%;
  padding:16px;
- border:none;
  border-radius:14px;
  font-weight:700;
  cursor:pointer;
@@ -151,9 +167,9 @@ button{
  color:#08111f;
 }
 
-#registerButton:hover{
- transform:translateY(-2px);
-}
+#registerButton:hover{transform:translateY(-2px)}
+
+button:disabled{opacity:.65;cursor:not-allowed;transform:none !important}
 
 .secondary{
  background:transparent;
@@ -161,9 +177,7 @@ button{
  color:#fff;
 }
 
-.secondary:hover{
- background:rgba(255,255,255,.05);
-}
+.secondary:hover{background:rgba(255,255,255,.05)}
 
 .divider{
  display:flex;
@@ -212,6 +226,8 @@ button{
  margin-bottom:8px;
 }
 
+.feature p{color:var(--muted)}
+
 .promo{
  width:min(1200px,92%);
  margin:0 auto 100px;
@@ -220,6 +236,9 @@ button{
  gap:40px;
  align-items:center;
 }
+
+.promo-text h2{font-size:2rem;margin:12px 0}
+.promo-text p:not(.season){color:var(--muted);line-height:1.7}
 
 .image-placeholder{
  height:360px;
@@ -239,13 +258,198 @@ footer{
  border-top:1px solid var(--line);
 }
 
-@media(max-width:900px){
-.hero-content,
-.promo,
-.features{
- grid-template-columns:1fr;
+/* ==============================
+   Logged-in application shell
+   ============================== */
+.app-view{
+ min-height:100vh;
+ padding:24px;
 }
-.brand h1{font-size:2.8rem}
-.hero{padding:30px}
+
+.app-shell{
+ min-height:calc(100vh - 48px);
+ width:min(1500px,100%);
+ margin:0 auto;
+ display:grid;
+ grid-template-columns:250px 1fr;
+ background:rgba(7,17,31,.7);
+ border:1px solid var(--line);
+ border-radius:26px;
+ overflow:hidden;
+ backdrop-filter:blur(20px);
+ box-shadow:var(--shadow);
+}
+
+.app-sidebar{
+ display:flex;
+ flex-direction:column;
+ padding:24px 18px;
+ border-right:1px solid var(--line);
+ background:rgba(5,13,25,.72);
+}
+
+.app-brand{
+ display:flex;
+ align-items:center;
+ gap:12px;
+ padding:6px 8px 24px;
+ border-bottom:1px solid var(--line);
+}
+
+.app-brand strong{display:block;font-size:1.15rem}
+.app-brand span{display:block;color:var(--muted);font-size:.72rem;margin-top:2px}
+
+.app-nav{
+ display:flex;
+ flex-direction:column;
+ gap:8px;
+ padding:22px 0;
+}
+
+.app-nav-item,
+.app-logout{
+ width:100%;
+ text-align:left;
+ padding:13px 14px;
+ border-radius:12px;
+ background:transparent;
+ color:var(--muted);
+ border:1px solid transparent;
+ font-weight:600;
+}
+
+.app-nav-item:hover,
+.app-nav-item.active{
+ color:var(--text);
+ background:rgba(255,255,255,.05);
+ border-color:var(--line);
+}
+
+.app-nav-item.active{
+ box-shadow:inset 3px 0 0 var(--gold);
+}
+
+.app-logout{
+ margin-top:auto;
+ color:#ffb4b4;
+}
+
+.app-logout:hover{background:rgba(255,107,107,.08)}
+
+.app-main{
+ min-width:0;
+ padding:32px;
+}
+
+.app-header{
+ display:flex;
+ justify-content:space-between;
+ align-items:flex-start;
+ gap:20px;
+ padding-bottom:24px;
+ border-bottom:1px solid var(--line);
+}
+
+.app-header h1{
+ font-size:2.1rem;
+ margin:6px 0;
+}
+
+.app-header p:last-child{color:var(--muted)}
+
+.app-player-pill{
+ border:1px solid rgba(212,175,55,.28);
+ color:var(--gold2);
+ background:rgba(212,175,55,.08);
+ padding:10px 14px;
+ border-radius:999px;
+ white-space:nowrap;
+}
+
+.app-content{
+ padding-top:28px;
+}
+
+.app-content-grid{
+ display:grid;
+ grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:20px;
+}
+
+.app-card{
+ background:rgba(13,25,43,.76);
+ border:1px solid var(--line);
+ border-radius:18px;
+ padding:24px;
+}
+
+.app-card h2{margin-bottom:8px}
+.app-card p{color:var(--muted);line-height:1.65}
+
+.app-card.accent{
+ border-color:rgba(212,175,55,.25);
+ background:linear-gradient(135deg,rgba(212,175,55,.1),rgba(12,22,40,.84));
+}
+
+.app-stat-row{
+ display:grid;
+ grid-template-columns:repeat(3,1fr);
+ gap:12px;
+ margin-top:18px;
+}
+
+.app-stat{
+ padding:16px;
+ border:1px solid var(--line);
+ border-radius:14px;
+ background:rgba(255,255,255,.025);
+}
+
+.app-stat strong{display:block;font-size:1.25rem;color:var(--gold2)}
+.app-stat span{display:block;color:var(--muted);font-size:.8rem;margin-top:4px}
+
+.app-action{
+ margin-top:18px;
+ background:linear-gradient(135deg,var(--gold2),var(--gold));
+ color:#08111f;
+}
+
+.app-placeholder-list{
+ display:grid;
+ gap:12px;
+ margin-top:18px;
+}
+
+.app-placeholder-item{
+ padding:14px 16px;
+ border:1px solid var(--line);
+ border-radius:12px;
+ background:rgba(255,255,255,.025);
+}
+
+.app-placeholder-item strong{display:block}
+.app-placeholder-item span{color:var(--muted);font-size:.85rem}
+
+@media(max-width:900px){
+ .hero{padding:30px}
+ .hero-content,.promo{grid-template-columns:1fr}
+ .brand h1{font-size:2.8rem}
+ .features{grid-template-columns:repeat(2,1fr)}
+ .app-shell{grid-template-columns:1fr}
+ .app-sidebar{border-right:0;border-bottom:1px solid var(--line)}
+ .app-nav{display:grid;grid-template-columns:repeat(2,1fr)}
+ .app-logout{margin-top:10px}
+}
+
+@media(max-width:600px){
+ .features{grid-template-columns:1fr}
+ .register-card{padding:26px}
+ .app-view{padding:10px}
+ .app-shell{min-height:calc(100vh - 20px);border-radius:18px}
+ .app-main{padding:22px 18px}
+ .app-header{flex-direction:column}
+ .app-content-grid{grid-template-columns:1fr}
+ .app-stat-row{grid-template-columns:1fr}
+ .app-nav{grid-template-columns:1fr}
 }
 </style>
