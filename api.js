@@ -1,14 +1,19 @@
 /**********************************************************************
  * PLTT Platform
- * Api.gs
- * Version: 0.3.0
+ * Api.js
+ * Version: 0.3.2
+ *
+ * Feature:
+ * F001 - Player Registration
+ * F002 - Player Recognition
  *
  * Bridge between HTML (google.script.run)
- * and the business logic in Players.gs
+ * and the business logic.
  **********************************************************************/
 
 /**
- * Called from JS.html
+ * Register a new player.
+ * Called from JS.html.
  */
 function registerPlayerServer(payload) {
 
@@ -16,63 +21,47 @@ function registerPlayerServer(payload) {
     return errorResponse("No registration data received.");
   }
 
-  return registerPlayer(
+  const result = registerPlayer(
     payload.displayName,
     payload.playerCode,
     payload.mobile
   );
 
+  return result;
+
 }
 
 /**
- * Called when the user clicks
- * "Returning Player"
+ * Authenticate a player from their Player Code.
+ * Used by automatic recognition.
  */
-function continuePlayerServer() {
-
-  const cache = CacheService.getUserCache();
-
-  const playerCode = cache.get("PLAYER_CODE");
+function authenticatePlayerServer(playerCode) {
 
   if (!playerCode) {
-    return "";
+    return errorResponse("No Player Code supplied.");
   }
 
-  const result = authenticatePlayer(playerCode);
-
-  if (!result.success) {
-    cache.remove("PLAYER_CODE");
-    return "";
-  }
-
-  // Dashboard will come in F002
-  return "dashboard";
+  return authenticatePlayer(playerCode);
 
 }
 
 /**
- * Save player's code after successful registration.
- * This prepares us for automatic recognition.
+ * Continue with the currently recognised player.
  */
-function savePlayerSession(playerCode) {
+function continuePlayerServer(playerCode) {
 
-  CacheService
-    .getUserCache()
-    .put("PLAYER_CODE", cleanPlayerCode(playerCode), 21600); // 6 hours
-
-  return true;
+  return authenticatePlayerServer(playerCode);
 
 }
 
 /**
- * Clear current session.
+ * Health check.
  */
-function logoutPlayer() {
+function pingServer() {
 
-  CacheService
-    .getUserCache()
-    .remove("PLAYER_CODE");
-
-  return true;
+  return successResponse("PLTT API Online", {
+    version: APP.VERSION,
+    season: APP.SEASON
+  });
 
 }
