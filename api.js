@@ -1,7 +1,7 @@
 /**********************************************************************
  * PLTT Platform
  * Api.js
- * Version: 0.4.2.5
+ * Version: 0.4.2.6
  *
  * F001 - Player Registration
  * F002 - Player Recognition
@@ -16,13 +16,11 @@ function registerPlayerServer(payload) {
     return errorResponse("No registration data received.");
   }
 
-  const result = registerPlayer(
+  return registerPlayer(
     payload.displayName,
     payload.playerCode,
     payload.mobile
   );
-
-  return result;
 
 }
 
