@@ -1,13 +1,13 @@
 /**********************************************************************
  * PLTT Platform
  * PredictionCentreModule.js
- * Version: 0.5.1.2
+ * Version: 0.5.2
  *
  * Release:
- * - Apps Script filename collision fix
- * - True module rename from PredictionCentre.js
- * - Prediction Centre functionality preserved
- * - No authentication changes
+ * - Prediction Entry
+ * - Client-side validation
+ * - Live progress counter
+ * - Foundation for Save Draft
  *
  * Status:
  * Stable
@@ -23,7 +23,12 @@ const PREDICTION_CENTRE = {
 
     google.script.run
       .withSuccessHandler(data => {
-        this.render(data || { settings: {}, fixtures: [] });
+        try {
+          this.render(data || { settings: {}, fixtures: [] });
+        } catch (error) {
+          console.error('[PLTT PREDICTIONS] Render failed:', error);
+          content.innerHTML = this.errorMarkup('Unable to display fixtures.');
+        }
       })
       .withFailureHandler(error => {
         content.innerHTML = this.errorMarkup(
@@ -78,14 +83,18 @@ const PREDICTION_CENTRE = {
     }
 
     const groups = {};
-    fixtures.forEach(fixture => {
+    fixtures.forEach((fixture, fixtureIndex) => {
       const key = fixture.date || 'Date TBC';
       if (!groups[key]) groups[key] = [];
+      fixture._displayIndex = fixtureIndex;
+      fixture.homePrediction = fixture.homePrediction == null ? '' : fixture.homePrediction;
+      fixture.awayPrediction = fixture.awayPrediction == null ? '' : fixture.awayPrediction;
       groups[key].push(fixture);
     });
 
     const dates = Object.keys(groups);
     const gameweek = settings.currentGameweek || fixtures[0].gameweekID || '';
+    const completed = this.countCompletedPredictions(fixtures);
 
     content.innerHTML = `
       <section class="prediction-centre">
@@ -96,8 +105,8 @@ const PREDICTION_CENTRE = {
             <p>Gameweek ${this.escapeHtml(gameweek)}</p>
           </div>
           <div class="prediction-count">
-            <strong>${fixtures.length}</strong>
-            <span>Fixtures</span>
+            <strong class="prediction-completed-count">${completed} / ${fixtures.length}</strong>
+            <span>Predictions completed</span>
           </div>
         </div>
 
@@ -113,11 +122,14 @@ const PREDICTION_CENTRE = {
         </div>
       </section>
     `;
+
+    this.bindPredictionInputs(fixtures);
   },
 
   fixtureMarkup(fixture) {
     const home = fixture.home || {};
     const away = fixture.away || {};
+    const index = Number(fixture._displayIndex || 0);
 
     const homeBadge = home.badge
       ? `<img src="${this.escapeAttribute(home.badge)}" alt="" class="fixture-badge">`
@@ -128,19 +140,49 @@ const PREDICTION_CENTRE = {
       : `<span class="fixture-badge-placeholder">A</span>`;
 
     return `
-      <article class="prediction-fixture-card">
+      <article class="prediction-fixture-card" data-match-id="${this.escapeAttribute(fixture.matchID)}">
         <div class="fixture-meta">
           <span>${this.escapeHtml(fixture.kickOff || 'Kick-off TBC')}</span>
           <span>${this.escapeHtml(fixture.status || 'Scheduled')}</span>
         </div>
 
-        <div class="fixture-teams">
+        <div class="fixture-prediction-row">
           <div class="fixture-team home">
             <span>${this.escapeHtml(home.name || 'Home team')}</span>
             ${homeBadge}
           </div>
 
-          <div class="fixture-vs">VS</div>
+          <div class="score-inputs">
+            <input
+              class="score-input prediction-score-input"
+              data-prediction-index="${index}"
+              data-prediction-side="home"
+              data-match-id="${this.escapeAttribute(fixture.matchID)}"
+              type="number"
+              min="0"
+              max="20"
+              step="1"
+              inputmode="numeric"
+              autocomplete="off"
+              aria-label="${this.escapeAttribute((home.name || 'Home team') + ' predicted goals')}"
+              value="${this.escapeAttribute(this.normaliseScoreValue(fixture.homePrediction))}"
+            >
+            <span class="score-separator">-</span>
+            <input
+              class="score-input prediction-score-input"
+              data-prediction-index="${index}"
+              data-prediction-side="away"
+              data-match-id="${this.escapeAttribute(fixture.matchID)}"
+              type="number"
+              min="0"
+              max="20"
+              step="1"
+              inputmode="numeric"
+              autocomplete="off"
+              aria-label="${this.escapeAttribute((away.name || 'Away team') + ' predicted goals')}"
+              value="${this.escapeAttribute(this.normaliseScoreValue(fixture.awayPrediction))}"
+            >
+          </div>
 
           <div class="fixture-team away">
             ${awayBadge}
@@ -149,6 +191,142 @@ const PREDICTION_CENTRE = {
         </div>
       </article>
     `;
+  },
+
+  bindPredictionInputs(fixtures) {
+    const inputs = Array.from(document.querySelectorAll('.prediction-score-input'));
+
+    inputs.forEach(input => {
+      if (input.dataset.plttBound === '1') return;
+      input.dataset.plttBound = '1';
+
+      input.addEventListener('keydown', event => {
+        if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+        event.preventDefault();
+
+        const current = this.getScoreValue(input.value);
+        const next = event.key === 'ArrowUp'
+          ? Math.min(20, current + 1)
+          : Math.max(0, current - 1);
+
+        input.value = String(next);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+
+      input.addEventListener('input', () => {
+        this.handlePredictionInput(input);
+      });
+
+      input.addEventListener('blur', () => {
+        this.handlePredictionInput(input);
+      });
+
+      input.addEventListener('wheel', event => {
+        event.preventDefault();
+      }, { passive: false });
+    });
+
+    inputs.forEach((input, index) => {
+      input.addEventListener('keydown', event => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        const next = inputs[index + 1];
+        if (next) next.focus();
+      });
+    });
+
+    if (fixtures && fixtures.length) {
+      this.updateProgress(fixtures.length);
+    }
+  },
+
+  handlePredictionInput(input) {
+    const validation = this.validateScore(input.value);
+
+    if (validation.valid) {
+      input.classList.remove('prediction-input-invalid');
+      input.setCustomValidity('');
+      input.value = validation.value;
+    } else if (validation.empty) {
+      input.classList.remove('prediction-input-invalid');
+      input.setCustomValidity('');
+      input.value = '';
+    } else {
+      input.classList.add('prediction-input-invalid');
+      input.setCustomValidity('Enter a whole number from 0 to 20.');
+      return;
+    }
+
+    const card = input.closest('.prediction-fixture-card');
+    if (card) {
+      const cardInputs = Array.from(card.querySelectorAll('.prediction-score-input'));
+      const bothEntered = cardInputs.every(scoreInput => this.validateScore(scoreInput.value).valid);
+      card.classList.toggle('prediction-complete', bothEntered);
+    }
+
+    const fixtureCards = Array.from(document.querySelectorAll('.prediction-fixture-card'));
+    this.updateProgress(fixtureCards.length);
+  },
+
+  validateScore(value) {
+    const raw = String(value == null ? '' : value).trim();
+
+    if (raw === '') {
+      return { valid: false, empty: true, value: '' };
+    }
+
+    if (!/^\d+$/.test(raw)) {
+      return { valid: false, empty: false, value: '' };
+    }
+
+    const numeric = Number(raw);
+    if (!Number.isInteger(numeric) || numeric < 0 || numeric > 20) {
+      return { valid: false, empty: false, value: '' };
+    }
+
+    return { valid: true, empty: false, value: String(numeric) };
+  },
+
+  getScoreValue(value) {
+    const validation = this.validateScore(value);
+    return validation.valid ? Number(validation.value) : 0;
+  },
+
+  normaliseScoreValue(value) {
+    const validation = this.validateScore(value);
+    return validation.valid ? validation.value : '';
+  },
+
+  countCompletedPredictions(fixtures) {
+    return fixtures.reduce((count, fixture) => {
+      const homeValid = this.validateScore(fixture.homePrediction).valid;
+      const awayValid = this.validateScore(fixture.awayPrediction).valid;
+      return count + (homeValid && awayValid ? 1 : 0);
+    }, 0);
+  },
+
+  updateProgress(totalFixtures) {
+    const inputs = Array.from(document.querySelectorAll('.prediction-score-input'));
+    const byMatch = {};
+
+    inputs.forEach(input => {
+      const matchID = input.dataset.matchId || '';
+      if (!byMatch[matchID]) byMatch[matchID] = [];
+      byMatch[matchID].push(input);
+    });
+
+    let completed = 0;
+    Object.keys(byMatch).forEach(matchID => {
+      const pair = byMatch[matchID];
+      if (pair.length === 2 && pair.every(input => this.validateScore(input.value).valid)) {
+        completed += 1;
+      }
+    });
+
+    const counter = document.querySelector('.prediction-completed-count');
+    if (counter) {
+      counter.textContent = `${completed} / ${Number(totalFixtures || 0)}`;
+    }
   },
 
   escapeHtml(value) {
