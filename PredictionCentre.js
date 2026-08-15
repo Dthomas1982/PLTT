@@ -1,17 +1,12 @@
 /**********************************************************************
  * PLTT Platform
- * PredictionCentre.js
- * Version: 0.5.1
+ * PredictionCentreModule.js
+ * Version: 0.5.1.1
  *
  * Release:
- * - Prediction Centre Foundation
- * - Dynamic Fixture Pipeline
- * - Website Configuration
- * - Teams Sheet data enrichment
- * - Stable Authentication Foundation
- *
- * Status:
- * Stable
+ * - Apps Script file naming compatibility
+ * - Prediction Centre foundation preserved
+ * - No authentication changes
  **********************************************************************/
 
 const PREDICTION_CENTRE = {
