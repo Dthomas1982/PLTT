@@ -2,7 +2,13 @@
 <!--
 PLTT Platform
 CSS.html
-Version: 0.4.2.6
+Version: 0.5.2
+
+Release:
+- Prediction Entry
+- Client-side validation
+- Live progress counter
+- Foundation for Save Draft
 
 Client styling for the public landing page and application shell.
 -->
@@ -125,12 +131,44 @@ footer{text-align:center;color:var(--muted);padding:40px;border-top:1px solid va
 .app-placeholder-list{display:grid;gap:12px;margin-top:18px}.app-placeholder-item{padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.025)}
 .app-placeholder-item strong{display:block}.app-placeholder-item span{color:var(--muted);font-size:.85rem}
 
+/* Prediction Entry */
+.prediction-centre{display:grid;gap:18px}
+.prediction-centre-header{display:flex;justify-content:space-between;align-items:center;gap:20px}
+.prediction-centre-header h2{font-size:2rem;margin:8px 0}
+.prediction-count{min-width:170px;text-align:center;padding:16px;border:1px solid rgba(212,175,55,.24);border-radius:16px;background:rgba(212,175,55,.07)}
+.prediction-count strong{display:block;font-size:1.5rem;color:var(--gold2)}
+.prediction-count span{display:block;color:var(--muted);font-size:.78rem;margin-top:4px}
+.prediction-fixture-groups{display:grid;gap:18px}
+.fixture-date-group{display:grid;gap:10px}
+.fixture-date-heading{font-size:.9rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--gold2);padding:4px 2px}
+.prediction-list{display:grid;gap:12px}
+.prediction-fixture-card{background:rgba(13,25,43,.82);border:1px solid var(--line);border-radius:18px;padding:16px 18px;transition:.2s}
+.prediction-fixture-card.prediction-complete{border-color:rgba(89,211,126,.35)}
+.fixture-meta{display:flex;justify-content:space-between;gap:12px;color:var(--muted);font-size:.78rem;margin-bottom:14px;text-transform:uppercase;letter-spacing:.6px}
+.fixture-prediction-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:18px}
+.fixture-team{display:flex;align-items:center;gap:12px;min-width:0;font-weight:700}
+.fixture-team.home{justify-content:flex-end;text-align:right}
+.fixture-team.away{justify-content:flex-start;text-align:left}
+.fixture-badge{width:42px;height:42px;object-fit:contain;flex:0 0 auto}
+.fixture-badge-placeholder{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;background:rgba(255,255,255,.07);border:1px solid var(--line);color:var(--gold2);font-weight:800}
+.score-inputs{display:flex;align-items:center;gap:10px}
+.score-input{width:66px;height:58px;margin:0;padding:8px 6px;border-radius:14px;border:1px solid rgba(212,175,55,.25);background:#0b192e;color:#fff;text-align:center;font-size:1.55rem;font-weight:800}
+.score-input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 4px rgba(212,175,55,.12)}
+.score-input::-webkit-inner-spin-button,.score-input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.score-input[type=number]{-moz-appearance:textfield}
+.score-separator{font-size:1.2rem;color:var(--muted);font-weight:700}
+.prediction-input-invalid{border-color:#ff7575 !important;box-shadow:0 0 0 3px rgba(255,117,117,.12) !important}
+
 @media(max-width:900px){
  .hero{padding:30px}.hero-content,.promo{grid-template-columns:1fr}.brand h1{font-size:2.8rem}.features{grid-template-columns:repeat(2,1fr)}
  .app-shell{grid-template-columns:1fr}.app-sidebar{border-right:0;border-bottom:1px solid var(--line)}.app-nav{display:grid;grid-template-columns:repeat(2,1fr)}.app-logout{margin-top:10px}
+ .prediction-centre-header{flex-direction:column;align-items:stretch}.prediction-count{min-width:0}
+ .fixture-prediction-row{grid-template-columns:1fr}.fixture-team.home,.fixture-team.away{justify-content:center;text-align:center}.score-inputs{justify-content:center}
 }
 
 @media(max-width:600px){
  .features{grid-template-columns:1fr}.register-card{padding:26px}.app-view{padding:10px}.app-shell{min-height:calc(100vh - 20px);border-radius:18px}.app-main{padding:22px 18px}.app-header{flex-direction:column}.app-content-grid{grid-template-columns:1fr}.app-stat-row{grid-template-columns:1fr}.app-nav{grid-template-columns:1fr}
+ .score-input{width:62px;height:54px}
+ .prediction-fixture-card{padding:14px}
 }
 </style>
