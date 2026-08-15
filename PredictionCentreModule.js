@@ -123,7 +123,7 @@ const PREDICTION_CENTRE = {
       </section>
     `;
 
-    this.bindPredictionInputs(fixtures);
+    this.bindPredictionInputs(fixtures.length);
   },
 
   fixtureMarkup(fixture) {
@@ -153,35 +153,9 @@ const PREDICTION_CENTRE = {
           </div>
 
           <div class="score-inputs">
-            <input
-              class="score-input prediction-score-input"
-              data-prediction-index="${index}"
-              data-prediction-side="home"
-              data-match-id="${this.escapeAttribute(fixture.matchID)}"
-              type="number"
-              min="0"
-              max="20"
-              step="1"
-              inputmode="numeric"
-              autocomplete="off"
-              aria-label="${this.escapeAttribute((home.name || 'Home team') + ' predicted goals')}"
-              value="${this.escapeAttribute(this.normaliseScoreValue(fixture.homePrediction))}"
-            >
+            <input class="score-input prediction-score-input" data-prediction-index="${index}" data-prediction-side="home" data-match-id="${this.escapeAttribute(fixture.matchID)}" type="number" min="0" max="20" step="1" inputmode="numeric" autocomplete="off" aria-label="${this.escapeAttribute((home.name || 'Home team') + ' predicted goals')}" value="${this.escapeAttribute(this.normaliseScoreValue(fixture.homePrediction))}">
             <span class="score-separator">-</span>
-            <input
-              class="score-input prediction-score-input"
-              data-prediction-index="${index}"
-              data-prediction-side="away"
-              data-match-id="${this.escapeAttribute(fixture.matchID)}"
-              type="number"
-              min="0"
-              max="20"
-              step="1"
-              inputmode="numeric"
-              autocomplete="off"
-              aria-label="${this.escapeAttribute((away.name || 'Away team') + ' predicted goals')}"
-              value="${this.escapeAttribute(this.normaliseScoreValue(fixture.awayPrediction))}"
-            >
+            <input class="score-input prediction-score-input" data-prediction-index="${index}" data-prediction-side="away" data-match-id="${this.escapeAttribute(fixture.matchID)}" type="number" min="0" max="20" step="1" inputmode="numeric" autocomplete="off" aria-label="${this.escapeAttribute((away.name || 'Away team') + ' predicted goals')}" value="${this.escapeAttribute(this.normaliseScoreValue(fixture.awayPrediction))}">
           </div>
 
           <div class="fixture-team away">
@@ -193,23 +167,30 @@ const PREDICTION_CENTRE = {
     `;
   },
 
-  bindPredictionInputs(fixtures) {
+  bindPredictionInputs(totalFixtures) {
     const inputs = Array.from(document.querySelectorAll('.prediction-score-input'));
 
-    inputs.forEach(input => {
+    inputs.forEach((input, index) => {
       if (input.dataset.plttBound === '1') return;
       input.dataset.plttBound = '1';
 
       input.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          const next = inputs[index + 1];
+          if (next) next.focus();
+          return;
+        }
+
         if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
         event.preventDefault();
 
         const current = this.getScoreValue(input.value);
-        const next = event.key === 'ArrowUp'
+        const nextValue = event.key === 'ArrowUp'
           ? Math.min(20, current + 1)
           : Math.max(0, current - 1);
 
-        input.value = String(next);
+        input.value = String(nextValue);
         input.dispatchEvent(new Event('input', { bubbles: true }));
       });
 
@@ -220,52 +201,41 @@ const PREDICTION_CENTRE = {
       input.addEventListener('blur', () => {
         this.handlePredictionInput(input);
       });
-
-      input.addEventListener('wheel', event => {
-        event.preventDefault();
-      }, { passive: false });
     });
 
-    inputs.forEach((input, index) => {
-      input.addEventListener('keydown', event => {
-        if (event.key !== 'Enter') return;
-        event.preventDefault();
-        const next = inputs[index + 1];
-        if (next) next.focus();
-      });
-    });
-
-    if (fixtures && fixtures.length) {
-      this.updateProgress(fixtures.length);
-    }
+    this.updateProgress(totalFixtures);
   },
 
   handlePredictionInput(input) {
-    const validation = this.validateScore(input.value);
+    const raw = String(input.value == null ? '' : input.value);
+    const digits = raw.replace(/\D/g, '');
 
-    if (validation.valid) {
+    if (raw !== digits) {
+      input.value = digits;
+    }
+
+    if (digits === '') {
       input.classList.remove('prediction-input-invalid');
       input.setCustomValidity('');
-      input.value = validation.value;
-    } else if (validation.empty) {
-      input.classList.remove('prediction-input-invalid');
-      input.setCustomValidity('');
-      input.value = '';
     } else {
-      input.classList.add('prediction-input-invalid');
-      input.setCustomValidity('Enter a whole number from 0 to 20.');
-      return;
+      const numeric = Number(digits);
+      if (!Number.isInteger(numeric) || numeric < 0 || numeric > 20) {
+        input.classList.add('prediction-input-invalid');
+        input.setCustomValidity('Enter a whole number from 0 to 20.');
+      } else {
+        input.classList.remove('prediction-input-invalid');
+        input.setCustomValidity('');
+      }
     }
 
     const card = input.closest('.prediction-fixture-card');
     if (card) {
       const cardInputs = Array.from(card.querySelectorAll('.prediction-score-input'));
-      const bothEntered = cardInputs.every(scoreInput => this.validateScore(scoreInput.value).valid);
+      const bothEntered = cardInputs.length === 2 && cardInputs.every(scoreInput => this.validateScore(scoreInput.value).valid);
       card.classList.toggle('prediction-complete', bothEntered);
     }
 
-    const fixtureCards = Array.from(document.querySelectorAll('.prediction-fixture-card'));
-    this.updateProgress(fixtureCards.length);
+    this.updateProgress(document.querySelectorAll('.prediction-fixture-card').length);
   },
 
   validateScore(value) {
