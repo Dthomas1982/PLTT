@@ -1,15 +1,15 @@
 /**********************************************************************
  * PLTT Platform
- * Players.gs
- * Version: 0.4.3.0
+ * Players.js
+ * Version: 0.5.3
  *
  * Release:
- * - Stable Authentication Baseline
- * - Plain serializable player data returned to the client
- * - Production player registration and recognition
+ * - Stable Authentication Foundation
+ * - Plain serializable player data
+ * - Prediction Centre compatibility
  *
  * Status:
- * Authentication Complete
+ * Production
  **********************************************************************/
 
 function registerPlayer(displayName, playerCode, mobile) {
@@ -55,55 +55,93 @@ function registerPlayer(displayName, playerCode, mobile) {
       0
     ]);
 
-    logAction(FEATURES.PLAYER,"REGISTER",playerID,playerCode);
+    logAction(
+      FEATURES.PLAYER,
+      "REGISTER",
+      playerID,
+      playerCode
+    );
 
-    return successResponse("Player Registered",{
-      playerID:playerID,
-      playerCode:playerCode,
-      displayName:displayName
-    });
+    return successResponse(
+      "Player Registered",
+      {
+        playerID: playerID,
+        playerCode: playerCode,
+        displayName: displayName
+      }
+    );
 
-  } catch(err){
+  } catch (err) {
 
-    logAction(FEATURES.PLAYER,"ERROR","",err.message);
+    logAction(
+      FEATURES.PLAYER,
+      "ERROR",
+      "",
+      err.message
+    );
 
     return errorResponse(err.message);
-
   }
-
 }
 
-function authenticatePlayer(playerCode){
+function authenticatePlayer(playerCode) {
 
   playerCode = cleanPlayerCode(playerCode);
 
   const player = getPlayerByCode(playerCode);
 
-  if(!player)
+  if (!player)
     return errorResponse("Player not found.");
 
-  return successResponse("Player authenticated.",player);
-
+  return successResponse(
+    "Player authenticated.",
+    player
+  );
 }
 
-function playerCodeExists(playerCode){
-  return valueExists(SHEETS.PLAYERS,2,cleanPlayerCode(playerCode));
+function playerCodeExists(playerCode) {
+  return valueExists(
+    SHEETS.PLAYERS,
+    2,
+    cleanPlayerCode(playerCode)
+  );
 }
 
-function mobileExists(mobile){
-  return valueExists(SHEETS.PLAYERS,4,cleanMobile(mobile));
+function mobileExists(mobile) {
+  return valueExists(
+    SHEETS.PLAYERS,
+    4,
+    cleanMobile(mobile)
+  );
 }
 
-function getPlayerByCode(playerCode){
+function getPlayerByCode(playerCode) {
 
-  const row = findRow(SHEETS.PLAYERS,2,cleanPlayerCode(playerCode));
+  const row = findRow(
+    SHEETS.PLAYERS,
+    2,
+    cleanPlayerCode(playerCode)
+  );
 
-  if(row == -1) return null;
+  if (row === -1) return null;
 
-  const v = getSheet(SHEETS.PLAYERS).getRange(row,1,1,10).getValues()[0];
+  const v = getSheet(
+    SHEETS.PLAYERS
+  ).getRange(
+    row,
+    1,
+    1,
+    10
+  ).getValues()[0];
 
   let registered = "";
-  if (v[4] !== "" && v[4] !== null && v[4] !== undefined) {
+
+  if (
+    v[4] !== "" &&
+    v[4] !== null &&
+    v[4] !== undefined
+  ) {
+
     registered = Utilities.formatDate(
       new Date(v[4]),
       APP.TIMEZONE,
@@ -123,5 +161,4 @@ function getPlayerByCode(playerCode){
     seasonRank: Number(v[8] || 0),
     gameweeksPlayed: Number(v[9] || 0)
   };
-
 }
