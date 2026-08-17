@@ -1,19 +1,19 @@
 /**********************************************************************
  * PLTT Platform
  * Teams.js
- * Version: 0.5.0.1
+ * Version: 0.5.3
  *
  * Release:
- * - Data Layer Foundation
  * - Teams Sheet is source of truth
- * - Removed hard-coded team registry
  * - Reusable team lookup layer
+ * - Prediction Centre compatibility
  *
  * Status:
- * Stable
+ * Production
  **********************************************************************/
 
 function getAllTeams() {
+
   const sheet = getSheet(SHEETS.TEAMS);
   const lastRow = sheet.getLastRow();
   const lastColumn = sheet.getLastColumn();
@@ -22,8 +22,14 @@ function getAllTeams() {
     return [];
   }
 
-  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
-  const values = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
+  const headers = sheet
+    .getRange(1, 1, 1, lastColumn)
+    .getValues()[0];
+
+  const values = sheet
+    .getRange(2, 1, lastRow - 1, lastColumn)
+    .getValues();
+
   const index = buildHeaderIndex(headers);
 
   return values
@@ -36,10 +42,15 @@ function getAllTeams() {
 }
 
 function getTeamByCode(teamID) {
-  const key = String(teamID || '').trim().toUpperCase();
+
+  const key = String(teamID || '')
+    .trim()
+    .toUpperCase();
+
   if (!key) return null;
 
   const teams = getAllTeams();
+
   for (let i = 0; i < teams.length; i++) {
     if (teams[i].teamID === key) {
       return teams[i];
@@ -50,6 +61,7 @@ function getTeamByCode(teamID) {
 }
 
 function getTeamsLookup() {
+
   const teams = getAllTeams();
   const lookup = {};
 
@@ -61,9 +73,16 @@ function getTeamsLookup() {
 }
 
 function getTeamPresentation(homeTeamID, awayTeamID) {
+
   const lookup = getTeamsLookup();
-  const homeKey = String(homeTeamID || '').trim().toUpperCase();
-  const awayKey = String(awayTeamID || '').trim().toUpperCase();
+
+  const homeKey = String(homeTeamID || '')
+    .trim()
+    .toUpperCase();
+
+  const awayKey = String(awayTeamID || '')
+    .trim()
+    .toUpperCase();
 
   return {
     home: lookup[homeKey] || null,
@@ -72,31 +91,69 @@ function getTeamPresentation(homeTeamID, awayTeamID) {
 }
 
 function buildHeaderIndex(headers) {
+
   const index = {};
 
   headers.forEach(function(header, i) {
-    index[String(header || '').trim().toLowerCase()] = i;
+    index[
+      String(header || '')
+        .trim()
+        .toLowerCase()
+    ] = i;
   });
 
   return index;
 }
 
 function buildTeamFromRow(row, index) {
+
   const teamIDIndex = index.teamid;
 
   if (teamIDIndex === undefined) {
-    throw new Error('Teams sheet must contain a TeamID column.');
+    throw new Error(
+      'Teams sheet must contain a TeamID column.'
+    );
   }
 
   return {
-    teamID: String(row[teamIDIndex] || '').trim().toUpperCase(),
-    clubName: index.clubname !== undefined ? String(row[index.clubname] || '') : '',
-    shortName: index.shortname !== undefined ? String(row[index.shortname] || '') : '',
-    badgeURL: index.badgeurl !== undefined ? String(row[index.badgeurl] || '') : '',
-    primaryColour: index.primarycolour !== undefined ? String(row[index.primarycolour] || '') : '',
-    secondaryColour: index.secondarycolour !== undefined ? String(row[index.secondarycolour] || '') : '',
-    stadium: index.stadium !== undefined ? String(row[index.stadium] || '') : '',
-    websiteSlug: index.websiteslug !== undefined ? String(row[index.websiteslug] || '') : ''
+    teamID: String(
+      row[teamIDIndex] || ''
+    ).trim().toUpperCase(),
+
+    clubName:
+      index.clubname !== undefined
+        ? String(row[index.clubname] || '')
+        : '',
+
+    shortName:
+      index.shortname !== undefined
+        ? String(row[index.shortname] || '')
+        : '',
+
+    badgeURL:
+      index.badgeurl !== undefined
+        ? String(row[index.badgeurl] || '')
+        : '',
+
+    primaryColour:
+      index.primarycolour !== undefined
+        ? String(row[index.primarycolour] || '')
+        : '',
+
+    secondaryColour:
+      index.secondarycolour !== undefined
+        ? String(row[index.secondarycolour] || '')
+        : '',
+
+    stadium:
+      index.stadium !== undefined
+        ? String(row[index.stadium] || '')
+        : '',
+
+    websiteSlug:
+      index.websiteslug !== undefined
+        ? String(row[index.websiteslug] || '')
+        : ''
   };
 }
 
