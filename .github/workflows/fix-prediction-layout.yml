@@ -1,0 +1,104 @@
+name: Apply PLTT fixture layout
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply fixture layout and logo
+        env:
+          LOGO_B64: "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"
+          python - <<'PY'
+          import os,re,base64
+          from pathlib import Path
+
+          # 1) Save the supplied PLTT crest into the repo for future use.
+          Path('assets').mkdir(exist_ok=True)
+          Path('assets/pltt-crest.png').write_bytes(base64.b64decode(os.environ['LOGO_B64']))
+
+          # 2) Replace the prediction fixture markup with six fixed visual columns:
+          #    HOME NAME | HOME BADGE | HOME SCORE | AWAY SCORE | AWAY BADGE | AWAY NAME
+          js_path=Path('JS.html')
+          js=js_path.read_text(encoding='utf-8')
+          pattern=r'    predictionFixtureMarkup\(fixture, saved\) \{.*?\n    \},\n\n    bindPredictionInputs'
+          replacement='''    predictionFixtureMarkup(fixture, saved) {
+      const home = fixture.homeTeam || fixture.home || {};
+      const away = fixture.awayTeam || fixture.away || {};
+      const matchID = String(fixture.matchID || "");
+      const kickoff = fixture.kickoff || fixture.kickOff || "Kick-off TBC";
+      const homeName = home.clubName || home.name || "Home team";
+      const awayName = away.clubName || away.name || "Away team";
+      const homeBadge = home.badgeURL || home.badge || "";
+      const awayBadge = away.badgeURL || away.badge || "";
+      const homePrediction = saved && saved.homePrediction !== undefined ? saved.homePrediction : "";
+      const awayPrediction = saved && saved.awayPrediction !== undefined ? saved.awayPrediction : "";
+
+      return `
+        <article class="prediction-fixture-card" data-match-id="${this.escapeAttribute(matchID)}">
+          <div class="fixture-meta">
+            <span>${this.escapeHtml(kickoff)}</span>
+            <span>${this.escapeHtml(fixture.status || "Scheduled")}</span>
+          </div>
+
+          <div class="prediction-row">
+            <div class="fixture-team home-name">${this.escapeHtml(homeName)}</div>
+            <div class="fixture-badge-slot home-badge">
+              ${homeBadge
+                ? `<img src="${this.escapeAttribute(homeBadge)}" class="fixture-badge" alt="" loading="lazy">`
+                : `<span class="fixture-badge-placeholder">H</span>`}
+            </div>
+            <div class="prediction-inputs home-score">
+              <input type="number" class="prediction-input" data-match-id="${this.escapeAttribute(matchID)}" data-side="home" inputmode="numeric" min="0" max="20" step="1" value="${this.escapeAttribute(homePrediction)}">
+            </div>
+            <div class="prediction-inputs away-score">
+              <input type="number" class="prediction-input" data-match-id="${this.escapeAttribute(matchID)}" data-side="away" inputmode="numeric" min="0" max="20" step="1" value="${this.escapeAttribute(awayPrediction)}">
+            </div>
+            <div class="fixture-badge-slot away-badge">
+              ${awayBadge
+                ? `<img src="${this.escapeAttribute(awayBadge)}" class="fixture-badge" alt="" loading="lazy">`
+                : `<span class="fixture-badge-placeholder">A</span>`}
+            </div>
+            <div class="fixture-team away-name">${this.escapeHtml(awayName)}</div>
+          </div>
+        </article>
+      `;
+    },
+
+    bindPredictionInputs'''
+          new_js,n=re.subn(pattern,replacement,js,flags=re.S)
+          if n!=1:
+              raise SystemExit(f'Expected exactly one predictionFixtureMarkup block, found {n}')
+          js_path.write_text(new_js,encoding='utf-8')
+
+          # 3) Add a final CSS override so it wins over the previous responsive rules.
+          css_path=Path('CSS.html')
+          css=css_path.read_text(encoding='utf-8')
+          marker='/* PLTT FIXTURE LAYOUT V2 */'
+          css=css.split(marker)[0]
+          logo=Path('assets/pltt-crest.png').read_bytes()
+          logo_b64=base64.b64encode(logo).decode()
+          override=f'''\n\n{marker}\n/* Exact fixture order: home name | home badge | home score | away score | away badge | away name */\n.prediction-fixture-card{{overflow:hidden}}\n.prediction-row{{display:grid!important;grid-template-columns:minmax(150px,1fr) 52px 58px 58px 52px minmax(150px,1fr)!important;align-items:center!important;gap:12px!important;width:100%!important}}\n.fixture-team{{display:block!important;font-weight:800!important;line-height:1.15!important;min-width:0!important}}\n.home-name{{text-align:right!important;padding-right:2px}}\n.away-name{{text-align:left!important;padding-left:2px}}\n.fixture-badge-slot{{width:52px;height:52px;display:grid!important;place-items:center!important;justify-self:center!important}}\n.fixture-badge{{width:46px!important;height:46px!important;object-fit:contain!important;display:block!important;filter:drop-shadow(0 4px 8px rgba(0,0,0,.28))!important}}\n.fixture-badge-placeholder{{width:46px!important;height:46px!important;border-radius:12px;display:grid!important;place-items:center!important;background:rgba(255,255,255,.06);color:var(--muted);font-weight:800}}\n.prediction-inputs{{display:flex!important;align-items:center!important;justify-content:center!important;width:58px!important;margin:0!important}}\n.prediction-input{{width:52px!important;height:52px!important;margin:0!important;padding:0!important;text-align:center!important;font-size:1.2rem!important;font-weight:900!important}}\n.home-score,.away-score{{justify-self:center!important}}\n/* Use the supplied PLTT crest everywhere the compact brand mark is shown. */\n.tt-logo{{font-size:0!important;color:transparent!important;background:transparent url("data:image/png;base64,{logo_b64}") center/contain no-repeat!important;box-shadow:none!important}}\n\n@media(max-width:980px){{\n  .prediction-row{{grid-template-columns:minmax(110px,1fr) 44px 50px 50px 44px minmax(110px,1fr)!important;gap:8px!important}}\n  .fixture-badge-slot{{width:44px;height:44px}}\n  .fixture-badge,.fixture-badge-placeholder{{width:40px!important;height:40px!important}}\n  .prediction-inputs{{width:50px!important}}\n  .prediction-input{{width:46px!important;height:46px!important;font-size:1.05rem!important}}\n  .fixture-team{{font-size:.86rem!important}}\n}}\n\n@media(max-width:680px){{\n  .prediction-fixture-card{{padding:12px 8px!important;border-radius:16px!important}}\n  .prediction-row{{grid-template-columns:minmax(76px,1fr) 34px 44px 44px 34px minmax(76px,1fr)!important;gap:5px!important}}\n  .fixture-badge-slot{{width:34px;height:34px}}\n  .fixture-badge,.fixture-badge-placeholder{{width:32px!important;height:32px!important;border-radius:9px!important}}\n  .prediction-inputs{{width:44px!important}}\n  .prediction-input{{width:40px!important;height:44px!important;font-size:1rem!important;border-radius:11px!important}}\n  .fixture-team{{font-size:.72rem!important;line-height:1.12!important;overflow-wrap:anywhere}}\n  .home-name{{padding-right:1px}}\n  .away-name{{padding-left:1px}}\n  .fixture-meta{{font-size:.62rem!important;margin-bottom:9px!important}}\n}}\n\n@media(max-width:390px){{\n  .prediction-row{{grid-template-columns:minmax(62px,1fr) 30px 40px 40px 30px minmax(62px,1fr)!important;gap:3px!important}}\n  .fixture-badge-slot{{width:30px;height:30px}}\n  .fixture-badge,.fixture-badge-placeholder{{width:28px!important;height:28px!important}}\n  .prediction-inputs{{width:40px!important}}\n  .prediction-input{{width:37px!important;height:42px!important;font-size:.95rem!important}}\n  .fixture-team{{font-size:.66rem!important}}\n}}\n'''
+          css_path.write_text(css+override,encoding='utf-8')
+
+          # 4) Keep the uploaded crest as a normal repo asset too.
+          print('Applied PLTT fixture layout V2 and crest asset')
+          PY
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add JS.html CSS.html assets/pltt-crest.png
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix PLTT fixture alignment and branding"
+          git push
