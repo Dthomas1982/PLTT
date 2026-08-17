@@ -2,12 +2,13 @@
 /**********************************************************************
  * PLTT Platform
  * JS.html
- * Version: 0.5.3
+ * Version: 0.5.4
  *
  * Release:
  * - Prediction Centre integrated into client architecture
  * - Prediction entry and save/load flow
  * - Stable authentication preserved
+ * - Fixed six-column fixture layout
  **********************************************************************/
 
 (function (window, document) {
@@ -473,25 +474,24 @@
           </div>
 
           <div class="prediction-row">
-            <div class="fixture-team home">
+            <div class="fixture-team home-name">${this.escapeHtml(homeName)}</div>
+            <div class="fixture-badge-slot home-badge">
               ${homeBadge
                 ? `<img src="${this.escapeAttribute(homeBadge)}" class="fixture-badge" alt="" loading="lazy">`
                 : `<span class="fixture-badge-placeholder">H</span>`}
-              <span>${this.escapeHtml(homeName)}</span>
             </div>
-
-            <div class="prediction-inputs">
+            <div class="prediction-inputs home-score">
               <input type="number" class="prediction-input" data-match-id="${this.escapeAttribute(matchID)}" data-side="home" inputmode="numeric" min="0" max="20" step="1" value="${this.escapeAttribute(homePrediction)}">
-              <span class="prediction-separator">-</span>
+            </div>
+            <div class="prediction-inputs away-score">
               <input type="number" class="prediction-input" data-match-id="${this.escapeAttribute(matchID)}" data-side="away" inputmode="numeric" min="0" max="20" step="1" value="${this.escapeAttribute(awayPrediction)}">
             </div>
-
-            <div class="fixture-team away">
-              <span>${this.escapeHtml(awayName)}</span>
+            <div class="fixture-badge-slot away-badge">
               ${awayBadge
                 ? `<img src="${this.escapeAttribute(awayBadge)}" class="fixture-badge" alt="" loading="lazy">`
                 : `<span class="fixture-badge-placeholder">A</span>`}
             </div>
+            <div class="fixture-team away-name">${this.escapeHtml(awayName)}</div>
           </div>
         </article>
       `;
