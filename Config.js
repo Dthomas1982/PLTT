@@ -1,22 +1,21 @@
 /**********************************************************************
  * PLTT Platform
  * Config.js
- * Version: 0.5.1
+ * Version: 0.5.3
  *
  * Release:
- * - Prediction Centre Foundation
- * - Website Configuration
- * - Dynamic Fixture Pipeline
- * - Google Sheets Data Layer
+ * - Prediction Centre integrated into client architecture
+ * - Dynamic fixture pipeline
+ * - Prediction persistence layer
  * - Stable Authentication Foundation
  *
  * Status:
- * Stable
+ * Production
  **********************************************************************/
 
 const APP = {
   NAME: "Premier League Top Tipster",
-  VERSION: "0.5.1",
+  VERSION: "0.5.3",
   SEASON: "2026/27",
   TIMEZONE: Session.getScriptTimeZone()
 };
