@@ -1,14 +1,15 @@
 /**********************************************************************
  * PLTT Platform
- * Utilities.gs
- * Version: 0.4.3.0
+ * Utilities.js
+ * Version: 0.5.3
  *
  * Release:
- * - Stable Authentication Baseline
- * - Shared utility functions for production authentication
+ * - Shared utility functions
+ * - Stable prediction data layer support
+ * - Stable Authentication Foundation
  *
  * Status:
- * Authentication Complete
+ * Production
  **********************************************************************/
 
 function getWorkbook() {
@@ -24,7 +25,6 @@ function getSheet(sheetName) {
   }
 
   return sheet;
-
 }
 
 function getCurrentTimestamp() {
@@ -34,7 +34,6 @@ function getCurrentTimestamp() {
     APP.TIMEZONE,
     "yyyy-MM-dd HH:mm:ss"
   );
-
 }
 
 function successResponse(message, data) {
@@ -44,7 +43,6 @@ function successResponse(message, data) {
     message: message,
     data: data || null
   };
-
 }
 
 function errorResponse(message) {
@@ -53,7 +51,6 @@ function errorResponse(message) {
     success: false,
     message: message
   };
-
 }
 
 function cleanPlayerCode(code) {
@@ -72,56 +69,65 @@ function isValidMobile(number) {
   return /^(\+44|0)[0-9]{10}$/.test(cleanMobile(number));
 }
 
-function generateNextId(sheetName,prefix){
+function generateNextId(sheetName, prefix) {
 
   const sheet = getSheet(sheetName);
   const lastRow = sheet.getLastRow();
 
-  if(lastRow<=1){
+  if (lastRow <= 1) {
     return prefix + "0001";
   }
 
-  const ids = sheet.getRange(2,1,lastRow-1,1).getValues().flat();
+  const ids = sheet
+    .getRange(2, 1, lastRow - 1, 1)
+    .getValues()
+    .flat();
 
   let highest = 0;
 
-  ids.forEach(function(id){
-    const n = parseInt(String(id).replace(prefix,""),10);
-    if(!isNaN(n) && n>highest){
-      highest=n;
+  ids.forEach(function(id) {
+
+    const n = parseInt(
+      String(id).replace(prefix, ""),
+      10
+    );
+
+    if (!isNaN(n) && n > highest) {
+      highest = n;
     }
   });
 
-  return prefix + String(highest+1).padStart(4,"0");
-
+  return prefix + String(highest + 1).padStart(4, "0");
 }
 
-function findRow(sheetName,column,value){
+function findRow(sheetName, column, value) {
 
   const sheet = getSheet(sheetName);
   const lastRow = sheet.getLastRow();
 
-  if(lastRow<=1){
+  if (lastRow <= 1) {
     return -1;
   }
 
-  const values = sheet.getRange(2,column,lastRow-1,1).getValues();
+  const values = sheet
+    .getRange(2, column, lastRow - 1, 1)
+    .getValues();
 
-  for(let i=0;i<values.length;i++){
-    if(String(values[i][0])===String(value)){
-      return i+2;
+  for (let i = 0; i < values.length; i++) {
+
+    if (String(values[i][0]) === String(value)) {
+      return i + 2;
     }
   }
 
   return -1;
-
 }
 
-function valueExists(sheetName,column,value){
-  return findRow(sheetName,column,value)!==-1;
+function valueExists(sheetName, column, value) {
+  return findRow(sheetName, column, value) !== -1;
 }
 
-function logAction(feature,action,player,details){
+function logAction(feature, action, player, details) {
 
   getSheet(SHEETS.LOGS).appendRow([
     getCurrentTimestamp(),
@@ -130,9 +136,10 @@ function logAction(feature,action,player,details){
     player,
     details
   ]);
-
 }
 
-function include(filename){
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+function include(filename) {
+  return HtmlService
+    .createHtmlOutputFromFile(filename)
+    .getContent();
 }
