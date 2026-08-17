@@ -1,16 +1,25 @@
 /**********************************************************************
  * PLTT Platform
  * Teams.js
- * Version: 0.5.3
+ * Version: 0.5.4
  *
  * Release:
- * - Teams Sheet is source of truth
- * - Reusable team lookup layer
- * - Prediction Centre compatibility
+ * - Teams Sheet remains source of truth
+ * - TeamID is the canonical badge key
+ * - Club badges are served from the PLTT repository assets
+ * - No browser-relative badge filenames
  *
  * Status:
  * Production
  **********************************************************************/
+
+const PLTT_BADGE_BASE_URL = 'https://raw.githubusercontent.com/Dthomas1982/PLTT/main/assets/badges/';
+
+function getTeamBadgeUrl(teamID) {
+  const key = String(teamID || '').trim().toUpperCase();
+  if (!key) return '';
+  return PLTT_BADGE_BASE_URL + encodeURIComponent(key) + '.png';
+}
 
 function getAllTeams() {
 
@@ -115,10 +124,12 @@ function buildTeamFromRow(row, index) {
     );
   }
 
+  const teamID = String(
+    row[teamIDIndex] || ''
+  ).trim().toUpperCase();
+
   return {
-    teamID: String(
-      row[teamIDIndex] || ''
-    ).trim().toUpperCase(),
+    teamID: teamID,
 
     clubName:
       index.clubname !== undefined
@@ -130,10 +141,7 @@ function buildTeamFromRow(row, index) {
         ? String(row[index.shortname] || '')
         : '',
 
-    badgeURL:
-      index.badgeurl !== undefined
-        ? String(row[index.badgeurl] || '')
-        : '',
+    badgeURL: getTeamBadgeUrl(teamID),
 
     primaryColour:
       index.primarycolour !== undefined
@@ -159,4 +167,14 @@ function buildTeamFromRow(row, index) {
 
 function testTeamsDataLayer() {
   return getAllTeams();
+}
+
+function testTeamBadgeUrls() {
+  return getAllTeams().map(function(team) {
+    return {
+      teamID: team.teamID,
+      clubName: team.clubName,
+      badgeURL: team.badgeURL
+    };
+  });
 }
