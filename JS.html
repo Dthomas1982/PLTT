@@ -2,15 +2,12 @@
 /**********************************************************************
  * PLTT Platform
  * JS.html
- * Version: 0.5.1.2
+ * Version: 0.5.3
  *
  * Release:
- * - Apps Script filename collision fix
- * - Prediction Centre module rename support
- * - Authentication preserved
- *
- * Status:
- * Stable
+ * - Prediction Centre integrated into client architecture
+ * - Prediction entry and save/load flow
+ * - Stable authentication preserved
  **********************************************************************/
 
 (function (window, document) {
@@ -312,11 +309,310 @@
       title.textContent = selected.title;
       content.innerHTML = selected.html;
 
-      if (view === "predictions" && window.PREDICTION_CENTRE) {
-        window.PREDICTION_CENTRE.load();
+      if (view === "predictions") {
+        this.loadPredictionCentre();
       }
 
       this.bindDynamicActions();
+    },
+
+    loadPredictionCentre() {
+      const content = document.getElementById("appContent");
+      if (!content) return;
+
+      content.innerHTML = `
+        <section class="prediction-centre">
+          <article class="app-card accent">
+            <p class="season">Prediction Centre</p>
+            <h2>Loading fixtures...</h2>
+            <p>Please wait while the current Gameweek is loaded.</p>
+          </article>
+        </section>
+      `;
+
+      const playerID = this.currentPlayer && this.currentPlayer.playerID
+        ? this.currentPlayer.playerID
+        : "";
+
+      if (!playerID) {
+        this.showPredictionError("Please log in before opening Predictions.");
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(result => {
+          if (!result || result.success !== true || !result.data) {
+            this.showPredictionError(
+              result && result.message
+                ? result.message
+                : "Unable to load Prediction Centre."
+            );
+            return;
+          }
+
+          this.renderPredictionCentre(result.data);
+        })
+        .withFailureHandler(error => {
+          this.showPredictionError(
+            error && error.message
+              ? error.message
+              : "Unable to load Prediction Centre."
+          );
+        })
+        .getPredictionCentreData(playerID);
+    },
+
+    showPredictionError(message) {
+      const content = document.getElementById("appContent");
+      if (!content) return;
+
+      content.innerHTML = `
+        <section class="prediction-centre">
+          <article class="app-card">
+            <p class="season">Prediction Centre</p>
+            <h2>Unable to load</h2>
+            <p>${this.escapeHtml(message)}</p>
+          </article>
+        </section>
+      `;
+    },
+
+    renderPredictionCentre(data) {
+      const content = document.getElementById("appContent");
+      if (!content) return;
+
+      const settings = data.settings || {};
+      const fixtures = Array.isArray(data.fixtures) ? data.fixtures.slice() : [];
+      const savedPredictions = Array.isArray(data.predictions) ? data.predictions : [];
+
+      const predictionMap = {};
+      savedPredictions.forEach(item => {
+        predictionMap[String(item.matchID)] = item;
+      });
+
+      fixtures.sort((a, b) => {
+        const left = `${a.date || ""} ${a.kickoff || a.kickOff || ""}`;
+        const right = `${b.date || ""} ${b.kickoff || b.kickOff || ""}`;
+        return left.localeCompare(right);
+      });
+
+      if (!fixtures.length) {
+        content.innerHTML = `
+          <section class="prediction-centre">
+            <article class="app-card accent">
+              <p class="season">${this.escapeHtml(settings.competitionName || "Prediction Centre")}</p>
+              <h2>No fixtures available.</h2>
+              <p>There are no fixtures published for the current Gameweek.</p>
+            </article>
+          </section>
+        `;
+        return;
+      }
+
+      const groups = {};
+      fixtures.forEach(fixture => {
+        const date = fixture.date || "Date TBC";
+        if (!groups[date]) groups[date] = [];
+        groups[date].push(fixture);
+      });
+
+      content.innerHTML = `
+        <section class="prediction-centre">
+          <div class="prediction-centre-header">
+            <div>
+              <p class="season">${this.escapeHtml(settings.competitionName || "Prediction Centre")}</p>
+              <h2>Prediction Centre</h2>
+              <p>Gameweek ${this.escapeHtml(settings.currentGameweek || "")}</p>
+            </div>
+            <div class="prediction-count">
+              <strong id="predictionProgress">0 / ${fixtures.length}</strong>
+              <span>Predictions</span>
+            </div>
+          </div>
+
+          <div id="predictionMessage" class="prediction-message" hidden></div>
+
+          <div class="prediction-fixture-groups">
+            ${Object.keys(groups).map(date => `
+              <section class="fixture-date-group">
+                <div class="fixture-date-heading">${this.escapeHtml(date)}</div>
+                <div class="prediction-list">
+                  ${groups[date].map(fixture => this.predictionFixtureMarkup(fixture, predictionMap[fixture.matchID])).join("")}
+                </div>
+              </section>
+            `).join("")}
+          </div>
+
+          <div class="prediction-actions">
+            <button id="savePredictionsButton" class="btn-primary" type="button">Save Predictions</button>
+          </div>
+        </section>
+      `;
+
+      this.bindPredictionInputs(fixtures.length);
+      this.updatePredictionProgress(fixtures.length);
+    },
+
+    predictionFixtureMarkup(fixture, saved) {
+      const home = fixture.homeTeam || fixture.home || {};
+      const away = fixture.awayTeam || fixture.away || {};
+      const matchID = String(fixture.matchID || "");
+      const kickoff = fixture.kickoff || fixture.kickOff || "Kick-off TBC";
+      const homeName = home.clubName || home.name || "Home team";
+      const awayName = away.clubName || away.name || "Away team";
+      const homeBadge = home.badgeURL || home.badge || "";
+      const awayBadge = away.badgeURL || away.badge || "";
+      const homePrediction = saved && saved.homePrediction !== undefined ? saved.homePrediction : "";
+      const awayPrediction = saved && saved.awayPrediction !== undefined ? saved.awayPrediction : "";
+
+      return `
+        <article class="prediction-fixture-card" data-match-id="${this.escapeAttribute(matchID)}">
+          <div class="fixture-meta">
+            <span>${this.escapeHtml(kickoff)}</span>
+            <span>${this.escapeHtml(fixture.status || "Scheduled")}</span>
+          </div>
+
+          <div class="prediction-row">
+            <div class="fixture-team home">
+              ${homeBadge
+                ? `<img src="${this.escapeAttribute(homeBadge)}" class="fixture-badge" alt="" loading="lazy">`
+                : `<span class="fixture-badge-placeholder">H</span>`}
+              <span>${this.escapeHtml(homeName)}</span>
+            </div>
+
+            <div class="prediction-inputs">
+              <input type="number" class="prediction-input" data-match-id="${this.escapeAttribute(matchID)}" data-side="home" inputmode="numeric" min="0" max="20" step="1" value="${this.escapeAttribute(homePrediction)}">
+              <span class="prediction-separator">-</span>
+              <input type="number" class="prediction-input" data-match-id="${this.escapeAttribute(matchID)}" data-side="away" inputmode="numeric" min="0" max="20" step="1" value="${this.escapeAttribute(awayPrediction)}">
+            </div>
+
+            <div class="fixture-team away">
+              <span>${this.escapeHtml(awayName)}</span>
+              ${awayBadge
+                ? `<img src="${this.escapeAttribute(awayBadge)}" class="fixture-badge" alt="" loading="lazy">`
+                : `<span class="fixture-badge-placeholder">A</span>`}
+            </div>
+          </div>
+        </article>
+      `;
+    },
+
+    bindPredictionInputs(fixtureCount) {
+      const inputs = Array.from(document.querySelectorAll(".prediction-input"));
+
+      inputs.forEach((input, index) => {
+        input.addEventListener("input", event => {
+          this.handlePredictionInput(event, inputs, index);
+        });
+      });
+
+      const saveButton = document.getElementById("savePredictionsButton");
+      if (saveButton) {
+        saveButton.addEventListener("click", () => this.savePredictions());
+      }
+
+      this.predictionFixtures = fixtureCount;
+    },
+
+    handlePredictionInput(event, inputs, index) {
+      const input = event.target;
+      let value = String(input.value || "").replace(/[^0-9]/g, "");
+
+      if (value === "") {
+        input.value = "";
+        this.updatePredictionProgress(this.predictionFixtures || 0);
+        return;
+      }
+
+      let score = Number(value);
+      if (score > 20) score = 20;
+      input.value = score;
+
+      if (score <= 9 && index < inputs.length - 1) {
+        inputs[index + 1].focus();
+        inputs[index + 1].select();
+      }
+
+      this.updatePredictionProgress(this.predictionFixtures || 0);
+    },
+
+    updatePredictionProgress(fixtureCount) {
+      const inputs = Array.from(document.querySelectorAll(".prediction-input"));
+      let completed = 0;
+
+      for (let i = 0; i < inputs.length; i += 2) {
+        const home = inputs[i] ? inputs[i].value : "";
+        const away = inputs[i + 1] ? inputs[i + 1].value : "";
+        if (home !== "" && away !== "") completed++;
+      }
+
+      const counter = document.getElementById("predictionProgress");
+      if (counter) counter.textContent = `${completed} / ${fixtureCount}`;
+    },
+
+    savePredictions() {
+      const button = document.getElementById("savePredictionsButton");
+      if (!button || !this.currentPlayer) return;
+
+      const inputs = Array.from(document.querySelectorAll(".prediction-input"));
+      const predictions = [];
+
+      for (let i = 0; i < inputs.length; i += 2) {
+        const homeInput = inputs[i];
+        const awayInput = inputs[i + 1];
+        if (!homeInput || !awayInput) continue;
+
+        predictions.push({
+          matchID: homeInput.dataset.matchId,
+          homePrediction: homeInput.value,
+          awayPrediction: awayInput.value
+        });
+      }
+
+      button.disabled = true;
+      button.textContent = "Saving...";
+
+      google.script.run
+        .withSuccessHandler(result => {
+          button.disabled = false;
+
+          if (!result || result.success !== true) {
+            button.textContent = "Save Predictions";
+            this.showPredictionMessage(
+              result && result.message ? result.message : "Unable to save predictions.",
+              "error"
+            );
+            return;
+          }
+
+          button.textContent = "Saved ✓";
+          this.showPredictionMessage("Predictions saved successfully.", "success");
+
+          setTimeout(() => {
+            this.loadPredictionCentre();
+          }, 500);
+        })
+        .withFailureHandler(error => {
+          button.disabled = false;
+          button.textContent = "Save Predictions";
+          this.showPredictionMessage(
+            error && error.message ? error.message : "Unable to save predictions.",
+            "error"
+          );
+        })
+        .savePredictionsServer(
+          this.currentPlayer.playerID,
+          predictions
+        );
+    },
+
+    showPredictionMessage(message, type) {
+      const banner = document.getElementById("predictionMessage");
+      if (!banner) return;
+
+      banner.hidden = false;
+      banner.className = `prediction-message ${type || "success"}`;
+      banner.textContent = message;
     },
 
     dashboardMarkup() {
@@ -437,6 +733,19 @@
       if (!element) return;
       element.textContent = text;
       element.className = success ? "success" : "error";
+    },
+
+    escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/\"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    },
+
+    escapeAttribute(value) {
+      return this.escapeHtml(value);
     }
   };
 
