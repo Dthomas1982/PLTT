@@ -2,114 +2,70 @@
 <html lang="en">
 <head>
   <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#05070d">
   <?!= include('CSS'); ?>
 </head>
 <body>
 
-<!--
-/**********************************************************************
- * PLTT Platform
- * Index.html
- * Version: 0.4.3.0
- *
- * Release:
- * - Stable Authentication Baseline
- * - Production public landing page and application shell
- * - Unified client event binding
- *
- * Status:
- * Authentication Complete
- **********************************************************************/
--->
+<!-- PLTT Platform | Premium responsive shell -->
 
 <div id="publicView">
   <header class="hero">
     <div class="hero-content">
       <div class="brand">
-        <div class="tt-logo">TT</div>
+        <div class="tt-logo" aria-label="PLTT">PLTT</div>
         <p class="season">PREMIER LEAGUE 2026/27</p>
         <h1>Premier League<br>Top Tipster</h1>
         <p class="tagline">Predict. Compete. Win.</p>
-        <p class="description">
-          Join the ultimate Premier League prediction competition.
-          Climb the leaderboard, beat your friends and become Champion.
-        </p>
+        <p class="description">Join the ultimate Premier League prediction competition. Climb the leaderboard, beat your friends and become Champion.</p>
       </div>
 
       <section class="register-card" aria-label="PLTT registration and player login">
+        <div class="card-kicker">PLAYER ENTRY</div>
         <h2>Enter The Competition</h2>
-
         <div id="registrationFields">
           <input id="displayName" type="text" placeholder="Display Name" autocomplete="name">
           <input id="playerCode" type="text" maxlength="12" placeholder="Choose Player Code" autocomplete="off">
           <input id="mobile" type="tel" placeholder="Mobile Number" autocomplete="tel">
-
-          <button id="registerButton" type="button">
-            ENTER COMPETITION
-          </button>
+          <button id="registerButton" type="button">ENTER COMPETITION</button>
         </div>
-
         <div id="message" aria-live="polite"></div>
-
-        <div class="divider">
-          <span>Already Registered?</span>
-        </div>
-
+        <div class="divider"><span>Already Registered?</span></div>
         <div id="returningPlayerLogin" class="returning-player-login">
-          <input id="returningPlayerCode"
-                 type="text"
-                 maxlength="12"
-                 placeholder="Enter Player Code"
-                 autocomplete="off"
-                 aria-label="Returning player code">
-
-          <button id="returningLoginButton"
-                  type="button"
-                  class="secondary">
-            CONTINUE
-          </button>
+          <input id="returningPlayerCode" type="text" maxlength="12" placeholder="Enter Player Code" autocomplete="off" aria-label="Returning player code">
+          <button id="returningLoginButton" type="button" class="secondary">CONTINUE</button>
         </div>
       </section>
     </div>
   </header>
 
-  <section class="features">
-    <div class="feature"><h3>Weekly</h3><p>Compete every Gameweek</p></div>
-    <div class="feature"><h3>Season</h3><p>Play for the overall title</p></div>
-    <div class="feature"><h3>Live</h3><p>Track the leaderboard</p></div>
-    <div class="feature"><h3>Fair</h3><p>Transparent scoring</p></div>
+  <section class="features" aria-label="Competition features">
+    <div class="feature"><span class="feature-number">01</span><h3>Weekly</h3><p>Compete every Gameweek</p></div>
+    <div class="feature"><span class="feature-number">02</span><h3>Season</h3><p>Play for the overall title</p></div>
+    <div class="feature"><span class="feature-number">03</span><h3>Live</h3><p>Track the leaderboard</p></div>
+    <div class="feature"><span class="feature-number">04</span><h3>Fair</h3><p>Transparent scoring</p></div>
   </section>
 
   <section class="promo">
     <div class="promo-text">
       <p class="season">THE PLTT EXPERIENCE</p>
-      <h2>One season. Every prediction.</h2>
-      <p>
-        Predict the fixtures, manage your gameweeks and compete against your friends
-        throughout the Premier League season.
-      </p>
+      <h2>One season.<br>Every prediction.</h2>
+      <p>Predict the fixtures, manage your gameweeks and compete against your friends throughout the Premier League season.</p>
     </div>
-    <div class="promo-image">
-      <div class="image-placeholder">PLTT</div>
-    </div>
+    <div class="promo-image" aria-hidden="true"><div class="image-placeholder">PLTT</div></div>
   </section>
 
-  <footer>
-    <p>© Premier League Top Tipster</p>
-  </footer>
+  <footer><p>© Premier League Top Tipster</p></footer>
 </div>
 
 <div id="appView" class="app-view" hidden>
   <div class="app-shell">
     <aside class="app-sidebar">
       <div class="app-brand">
-        <div class="tt-logo small">TT</div>
-        <div>
-          <strong>PLTT</strong>
-          <span>2026/27</span>
-        </div>
+        <div class="tt-logo small">PLTT</div>
+        <div><strong>PLTT</strong><span>2026/27</span></div>
       </div>
-
       <nav class="app-nav" aria-label="Application navigation">
         <button class="app-nav-item active" type="button" data-view="dashboard">Dashboard</button>
         <button class="app-nav-item" type="button" data-view="predictions">Predictions</button>
@@ -117,7 +73,6 @@
         <button class="app-nav-item" type="button" data-view="fixtures">Fixtures</button>
         <button class="app-nav-item" type="button" data-view="rules">Rules</button>
       </nav>
-
       <button class="app-logout" type="button">Log out</button>
     </aside>
 
@@ -130,7 +85,6 @@
         </div>
         <div class="app-player-pill" id="appPlayerName">Player</div>
       </header>
-
       <section id="appContent" class="app-content"></section>
     </main>
   </div>
