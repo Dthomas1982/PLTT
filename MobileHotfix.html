@@ -1,5 +1,5 @@
 <style>
-/* PLTT MOBILE VISUAL FIX V0.7.1 */
+/* PLTT MOBILE VISUAL FIX V0.7.2 */
 /* Mobile is designed specifically for the Google Sites embedded view. */
 @media (max-width:680px){
   html,body{min-width:0!important;background:#050912!important}
@@ -18,11 +18,10 @@
   .hero,.app-view,.app-shell,.app-main{background:transparent!important}
   .promo-image{background:url("https://raw.githubusercontent.com/Dthomas1982/PLTT/main/assets/pltt-stadium-background.png") center / cover no-repeat!important}
 
-  /* Google Sites mobile header overlaps the embedded page. Reserve a larger top safe area so the first PLTT content starts clearly below it. */
-  .app-view{padding:118px 0 0!important;min-height:0!important;height:auto!important}
-  #publicView{padding-top:118px!important}
+  /* Google Sites mobile header occupies a large fixed area above the embedded page. */
+  .app-view{padding:200px 0 0!important;min-height:0!important;height:auto!important}
+  #publicView{padding-top:200px!important}
 
-  /* LANDING PAGE — deliberately simplified on phones. Google Sites already supplies the site title. */
   .landing-topbar{display:none!important}
   .hero{min-height:0!important;height:auto!important;padding:28px 20px 54px!important;display:block!important}
   .hero::after{background:linear-gradient(180deg,rgba(4,7,13,.32),rgba(4,7,13,.12) 38%,rgba(4,7,13,.72))!important}
@@ -41,7 +40,6 @@
   .register-card{margin:0!important;padding:22px 18px!important;border-radius:20px!important}
   .register-card h2{font-size:1.3rem!important;margin-bottom:12px!important}
   .register-intro{font-size:.8rem!important;line-height:1.5!important}
-
   .landing-stats{width:calc(100% - 40px)!important;margin:0 auto 42px!important;display:grid!important;grid-template-columns:1fr!important;gap:9px!important}
   .landing-stat{padding:16px!important;border-radius:16px!important}
   .landing-stat strong{font-size:.9rem!important}.landing-stat span{font-size:.72rem!important}
@@ -55,7 +53,7 @@
   .promo-image{height:220px!important;border-radius:18px!important}
   .landing-footer{padding:28px 20px!important;font-size:.7rem!important}
 
-  /* PLAYER AREA — give the Google Sites header clearance before anything else. */
+  /* PLAYER AREA — clear the complete Google Sites header before any PLTT content. */
   .app-shell{display:flex!important;flex-direction:column!important;width:100%!important;min-height:0!important;height:auto!important;margin:0!important;border:0!important;border-radius:0!important;overflow:visible!important;backdrop-filter:none!important;box-shadow:none!important}
   .app-sidebar{display:block!important;flex:none!important;width:100%!important;height:auto!important;min-height:0!important;margin:0!important;padding:10px 12px!important;border-right:0!important;border-bottom:1px solid var(--line)!important;background:rgba(4,8,14,.97)!important;position:relative!important;top:auto!important;z-index:20!important}
   .app-brand{height:46px!important;min-height:46px!important;padding:0 2px!important;border:0!important;display:flex!important;align-items:center!important;gap:9px!important}
@@ -74,8 +72,6 @@
   .app-header p:last-child{font-size:.72rem!important}
   .app-player-pill{padding:7px 9px!important;font-size:.62rem!important}
   .app-content{padding-top:14px!important}
-
-  /* Dashboard is one vertical column on mobile, never a desktop 2x2 grid. */
   .app-content-grid{display:flex!important;flex-direction:column!important;width:100%!important;gap:10px!important}
   .app-card{width:100%!important;padding:16px!important;border-radius:17px!important}
   .app-card h2{font-size:1.12rem!important;margin-bottom:6px!important}
@@ -85,7 +81,6 @@
   .app-stat{padding:10px 5px!important}
   .app-stat strong{font-size:1rem!important}.app-stat span{font-size:.58rem!important}
 
-  /* Prediction Centre: HOME NAME | HOME BADGE | HOME SCORE | AWAY SCORE | AWAY BADGE | AWAY NAME */
   .prediction-fixture-card{padding:10px 6px!important;border-radius:14px!important;overflow:hidden!important}
   .prediction-row{grid-template-columns:minmax(0,1fr) 30px 40px 40px 30px minmax(0,1fr)!important;gap:2px!important;min-height:50px!important;width:100%!important}
   .fixture-team{font-size:.62rem!important;line-height:1.08!important;min-width:0!important;overflow-wrap:normal!important;word-break:normal!important}
@@ -99,6 +94,5 @@
   .tt-logo,.tt-logo.small{background:transparent!important}
   .pltt-logo-image{display:block!important;object-fit:contain!important;object-position:center!important}
 }
-
 .pltt-logo-image{object-fit:contain!important;object-position:center!important}
 </style>
