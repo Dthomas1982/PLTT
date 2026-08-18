@@ -21,7 +21,7 @@
         <section class="payment-section">
           <h3>Payment Required</h3>
           <p>Your PLTT entry is a paid weekly competition. Once you have created a submission, please arrange payment as soon as possible.</p>
-          <div class="payment-warning"><strong>Please pay promptly after submitting your predictions.</strong><br>Creating a submission does not replace payment. Please use one of the payment methods below.</div>
+          <div class="payment-warning"><strong>Please pay promptly after submitting your predictions.</strong><br>As soon as you create a submission, please arrange your payment using one of the methods below.</div>
         </section>
         <section class="payment-section">
           <h3>Pay by Revolut</h3>
@@ -40,6 +40,25 @@
           <div class="payment-warning"><strong>Payment reminder:</strong> please make your payment promptly after creating any PLTT submission.</div>
         </section>
       </section>`;
+    };
+
+    const originalShowAppView = window.PLTT.showAppView.bind(window.PLTT);
+    window.PLTT.showAppView = function(view){
+      if(view !== "payment") return originalShowAppView(view);
+      const title = document.getElementById("appPageTitle"), content = document.getElementById("appContent");
+      if(!title || !content) return;
+      document.querySelectorAll(".app-nav-item").forEach(button => button.classList.toggle("active", button.dataset.view === "payment"));
+      title.textContent = "Payment";
+      content.innerHTML = window.PLTT.paymentPlaceholder();
+      requestAnimationFrame(() => window.PLTT.scrollApplicationToTop());
+    };
+
+    const originalShowPredictionMessage = window.PLTT.showPredictionMessage.bind(window.PLTT);
+    window.PLTT.showPredictionMessage = function(message, type){
+      if(type === "success" && /saved/i.test(String(message || ""))) {
+        message = "Predictions saved successfully. Please pay your entry fee promptly.";
+      }
+      return originalShowPredictionMessage(message, type);
     };
   }
   if(window.PLTT) installPayment(); else document.addEventListener('DOMContentLoaded',installPayment);
