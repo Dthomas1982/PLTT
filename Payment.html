@@ -1,0 +1,47 @@
+<style>
+.payment-page{max-width:920px;margin:0 auto;padding:0 0 36px}
+.payment-hero{padding:26px 28px;margin-bottom:18px;border:1px solid rgba(165,139,255,.28);border-radius:22px;background:linear-gradient(135deg,rgba(30,24,65,.88),rgba(8,12,20,.94));box-shadow:0 18px 50px rgba(0,0,0,.22)}
+.payment-hero .season{margin:0 0 8px}.payment-hero h2{font-size:2rem;line-height:1.05;margin:0 0 10px}.payment-hero p:last-child{margin:0;color:#aeb8ca;line-height:1.6}
+.payment-section{padding:24px 26px;margin:12px 0;border:1px solid rgba(255,255,255,.09);border-radius:18px;background:rgba(11,16,25,.82)}
+.payment-section h3{font-size:1.25rem;margin:0 0 12px}.payment-section p{margin:8px 0;color:#aeb8ca;line-height:1.62}
+.payment-method{padding:20px;margin:12px 0;border:1px solid rgba(255,255,255,.08);border-radius:16px;background:rgba(255,255,255,.025)}
+.payment-method h4{margin:0 0 8px;font-size:1.05rem;color:#f5f2ff}.payment-method p{margin:5px 0}
+.payment-link{display:inline-flex;align-items:center;justify-content:center;margin-top:10px;padding:13px 20px;border-radius:12px;background:linear-gradient(135deg,#a58bff,#7654ff);color:#fff;text-decoration:none;font-weight:900;letter-spacing:.02em}
+.payment-detail{display:grid;grid-template-columns:150px 1fr;gap:8px 14px;margin-top:12px}.payment-detail strong{color:#f5f2ff}.payment-detail span{color:#c3cada}
+.payment-warning{margin-top:18px;padding:17px 18px;border-left:3px solid #a58bff;border-radius:0 12px 12px 0;background:rgba(165,139,255,.07);color:#c9c1df;line-height:1.55}
+@media(max-width:680px){.payment-page{padding:0}.payment-hero{padding:20px 18px;border-radius:18px}.payment-hero h2{font-size:1.55rem}.payment-section{padding:18px 16px;border-radius:16px}.payment-method{padding:16px}.payment-detail{grid-template-columns:1fr;gap:3px 0}.payment-detail span{margin-bottom:7px}.payment-link{width:100%;box-sizing:border-box}}
+</style>
+<script>
+(function(){
+  function installPayment(){
+    if(!window.PLTT) return;
+    window.PLTT.paymentPlaceholder=function(){
+      return `<section class="payment-page">
+        <header class="payment-hero"><p class="season">PREMIER LEAGUE TOP TIPSTER</p><h2>Payment Details</h2><p>Please pay your £10 weekly entry fee promptly after creating your submission.</p></header>
+        <section class="payment-section">
+          <h3>Payment Required</h3>
+          <p>Your PLTT entry is a paid weekly competition. Once you have created a submission, please arrange payment as soon as possible.</p>
+          <div class="payment-warning"><strong>Please pay promptly after submitting your predictions.</strong><br>Creating a submission does not replace payment. Please use one of the payment methods below.</div>
+        </section>
+        <section class="payment-section">
+          <h3>Pay by Revolut</h3>
+          <div class="payment-method">
+            <h4>Quick &amp; easy payment</h4>
+            <p>Use the link below to send your payment through Revolut.</p>
+            <a class="payment-link" href="https://revolut.me/danielgwtk" target="_blank" rel="noopener noreferrer">PAY VIA REVOLUT</a>
+          </div>
+        </section>
+        <section class="payment-section">
+          <h3>Bank Transfer</h3>
+          <div class="payment-method">
+            <h4>Daniel Thomas</h4>
+            <div class="payment-detail"><strong>Sort code</strong><span>04-00-75</span><strong>Account number</strong><span>20167369</span></div>
+          </div>
+          <div class="payment-warning"><strong>Payment reminder:</strong> please make your payment promptly after creating any PLTT submission.</div>
+        </section>
+      </section>`;
+    };
+  }
+  if(window.PLTT) installPayment(); else document.addEventListener('DOMContentLoaded',installPayment);
+})();
+</script>
