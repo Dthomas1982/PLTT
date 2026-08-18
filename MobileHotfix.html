@@ -1,84 +1,80 @@
 <style>
-/* PLTT MOBILE VISUAL FIX V0.7.3 */
-/* Google Sites embedded mobile view: compact, vertical, no horizontal squashing. */
+/* PLTT MOBILE GOOGLE SITES FIX V0.7.3 */
+/* Reserve the Google Sites mobile chrome before the PLTT application begins. */
 @media (max-width:680px){
-  html,body{min-width:0!important;background:#050912!important}
+  /* Google Sites places its own mobile header above the embedded Apps Script view.
+     The PLTT iframe must start below that header, not underneath it. */
+  #appView.app-view{
+    display:block!important;
+    box-sizing:border-box!important;
+    padding:230px 0 0!important;
+    margin:0!important;
+    min-height:100svh!important;
+    height:auto!important;
+    overflow:visible!important;
+  }
 
-  /* Keep the PLTT application itself clean and solid inside the Google Sites iframe. */
-  body::before{content:""!important;position:fixed!important;inset:0!important;z-index:-2!important;pointer-events:none!important;background:#050912!important;opacity:1!important;filter:none!important}
-  body::after{content:""!important;position:fixed!important;inset:0!important;z-index:-1!important;pointer-events:none!important;background:linear-gradient(180deg,rgba(3,6,12,.08),rgba(3,6,12,.55))!important;opacity:1!important}
-  .hero,.app-view,.app-shell,.app-main{background:transparent!important}
+  #appView.app-view .app-shell{
+    margin:0!important;
+    width:100%!important;
+  }
 
-  /* Google Sites mobile header occupies the area above the embedded application. */
-  .app-view{padding:200px 0 0!important;min-height:0!important;height:auto!important}
-  #publicView{padding-top:200px!important}
+  /* Keep the application header/nav in normal document flow so it cannot
+     cover the first prediction fixture. */
+  #appView.app-view .app-sidebar{
+    position:relative!important;
+    top:auto!important;
+    z-index:2!important;
+  }
 
-  .landing-topbar{display:none!important}
-  .hero{min-height:0!important;height:auto!important;padding:28px 20px 54px!important;display:block!important}
-  .hero-content{display:block!important;width:100%!important;max-width:620px!important;margin:0 auto!important}
-  .hero-copy{display:flex!important;flex-direction:column!important;align-items:center!important;text-align:center!important;width:100%!important}
-  .hero-logo{order:1!important;width:210px!important;height:210px!important;margin:4px auto 22px!important;background:transparent!important;box-shadow:none!important;padding:0!important}
-  .hero-logo .pltt-logo-image{width:100%!important;height:100%!important;display:block!important;object-fit:contain!important}
-  .hero-eyebrow{order:2!important;margin:0 0 14px!important;font-size:.72rem!important;letter-spacing:.1em!important}
-  .hero-copy>.season{order:3!important;margin:0 0 18px!important;font-size:.67rem!important;padding:7px 11px!important}
-  .hero-title{order:4!important;font-size:2.55rem!important;line-height:.98!important;letter-spacing:-.055em!important;margin:0 0 18px!important}
-  .hero-description{order:5!important;max-width:560px!important;font-size:.92rem!important;line-height:1.62!important;margin:0 auto 22px!important}
-  .hero-actions{order:6!important;width:100%!important;display:grid!important;gap:10px!important}
-  .hero-actions button{width:100%!important;min-height:52px!important;font-size:.78rem!important}
-  .hero-proof{order:7!important;display:flex!important;flex-wrap:wrap!important;justify-content:center!important;gap:7px 14px!important;margin-top:18px!important;font-size:.55rem!important}
+  #appView.app-view .app-main{
+    position:relative!important;
+    z-index:1!important;
+  }
 
-  .register-card{margin:0!important;padding:22px 18px!important;border-radius:20px!important}
-  .register-card h2{font-size:1.3rem!important;margin-bottom:12px!important}
-  .register-intro{font-size:.8rem!important;line-height:1.5!important}
-  .landing-stats{width:calc(100% - 40px)!important;margin:0 auto 42px!important;display:grid!important;grid-template-columns:1fr!important;gap:9px!important}
-  .landing-stat{padding:16px!important;border-radius:16px!important}
-  .section-heading{width:calc(100% - 40px)!important;margin:0 auto 24px!important}
-  .features{width:calc(100% - 40px)!important;margin:0 auto 50px!important;display:grid!important;grid-template-columns:1fr!important;gap:10px!important}
-  .feature{padding:18px!important;border-radius:16px!important}
-  .promo{width:calc(100% - 40px)!important;margin:0 auto 50px!important;display:flex!important;flex-direction:column!important;gap:12px!important}
-  .promo-text{padding:20px!important;border-radius:18px!important}.promo-image{height:220px!important;border-radius:18px!important}
-  .landing-footer{padding:28px 20px!important;font-size:.7rem!important}
-
-  /* PLAYER AREA — vertical mobile app inside Google Sites. */
-  .app-shell{display:flex!important;flex-direction:column!important;width:100%!important;min-height:0!important;height:auto!important;margin:0!important;border:0!important;border-radius:0!important;overflow:visible!important;backdrop-filter:none!important;box-shadow:none!important}
-  .app-sidebar{display:block!important;flex:none!important;width:100%!important;height:auto!important;min-height:0!important;margin:0!important;padding:10px 12px!important;border-right:0!important;border-bottom:1px solid var(--line)!important;background:rgba(4,8,14,.97)!important;position:relative!important;top:auto!important;z-index:20!important}
-  .app-brand{height:46px!important;min-height:46px!important;padding:0 2px!important;border:0!important;display:flex!important;align-items:center!important;gap:9px!important}
-  .app-brand .tt-logo.small{width:36px!important;height:36px!important;border-radius:9px!important;flex:0 0 36px!important}
-  .app-brand strong{display:block!important;font-size:.66rem!important;line-height:1.1!important}
-  .app-brand span{font-size:.58rem!important;margin-top:2px!important}
-  .app-nav{display:flex!important;flex-direction:row!important;gap:5px!important;padding:7px 0 0!important;margin:0!important;overflow-x:auto!important;scrollbar-width:none!important}
-  .app-nav::-webkit-scrollbar{display:none}
-  .app-nav-item{flex:0 0 auto!important;width:auto!important;white-space:nowrap!important;text-align:center!important;padding:8px 10px!important;font-size:.68rem!important;border-radius:10px!important}
-  .app-logout{display:none!important}
-
-  .app-main{width:100%!important;min-height:0!important;height:auto!important;padding:16px 12px 28px!important}
-  .app-header{padding-bottom:13px!important;gap:8px!important}
-  .app-header h1{font-size:1.5rem!important;margin:3px 0!important}
-  .app-header p:last-child{font-size:.72rem!important}
-  .app-player-pill{padding:7px 9px!important;font-size:.62rem!important}
-  .app-content{padding-top:14px!important}
-  .app-content-grid{display:flex!important;flex-direction:column!important;width:100%!important;gap:10px!important}
-  .app-card{width:100%!important;padding:16px!important;border-radius:17px!important}
-  .app-stat-row{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important;margin-top:12px!important}
-  .app-stat{padding:10px 5px!important}
-
-  /* PREDICTIONS — fixed six-part order and enough room for every element. */
-  .prediction-fixture-card{width:100%!important;box-sizing:border-box!important;padding:10px 6px!important;border-radius:14px!important;overflow:hidden!important}
-  .prediction-row{display:grid!important;grid-template-columns:minmax(0,1fr) 30px 38px 38px 30px minmax(0,1fr)!important;gap:2px!important;align-items:center!important;width:100%!important;min-height:50px!important;box-sizing:border-box!important}
-  .fixture-team{display:block!important;min-width:0!important;width:100%!important;box-sizing:border-box!important;font-size:.60rem!important;font-weight:800!important;line-height:1.08!important;overflow:hidden!important;overflow-wrap:normal!important;word-break:normal!important;white-space:normal!important;max-height:2.25em!important}
-  .home-name{text-align:right!important;padding-right:2px!important}
-  .away-name{text-align:left!important;padding-left:2px!important}
-  .fixture-badge-slot{width:30px!important;height:34px!important;display:grid!important;place-items:center!important;min-width:0!important}
-  .fixture-badge,.fixture-badge-placeholder{width:28px!important;height:28px!important;max-width:28px!important;max-height:28px!important;padding:2px!important;border-radius:8px!important;box-sizing:border-box!important}
-  .prediction-inputs{width:38px!important;height:44px!important;display:flex!important;align-items:center!important;justify-content:center!important;min-width:0!important}
-  .prediction-input{width:36px!important;height:40px!important;box-sizing:border-box!important;margin:0!important;padding:0!important;font-size:.95rem!important;border-radius:9px!important;text-align:center!important}
-
-  /* Do not let the save bar cover fixtures in the Google Sites mobile viewport. */
-  .prediction-actions{position:static!important;bottom:auto!important;padding:12px 0 4px!important}
-  .prediction-actions .btn-primary{width:100%!important;min-width:0!important}
-
-  .tt-logo,.tt-logo.small{background:transparent!important}
-  .pltt-logo-image{display:block!important;object-fit:contain!important;object-position:center!important}
+  /* Prediction cards stay vertical and compact inside the Google Sites width. */
+  #appView.app-view .prediction-fixture-card{overflow:hidden!important}
+  #appView.app-view .prediction-row{
+    grid-template-columns:minmax(0,1fr) 30px 40px 40px 30px minmax(0,1fr)!important;
+    gap:2px!important;
+    width:100%!important;
+  }
+  #appView.app-view .fixture-team{
+    min-width:0!important;
+    max-width:100%!important;
+    overflow:hidden!important;
+    overflow-wrap:normal!important;
+    word-break:normal!important;
+    line-height:1.08!important;
+  }
+  #appView.app-view .home-name{text-align:right!important;padding-right:2px!important}
+  #appView.app-view .away-name{text-align:left!important;padding-left:2px!important}
+  #appView.app-view .fixture-badge-slot{
+    width:30px!important;height:34px!important;
+    display:grid!important;place-items:center!important;
+  }
+  #appView.app-view .fixture-badge,
+  #appView.app-view .fixture-badge-placeholder{
+    width:28px!important;height:28px!important;
+    padding:2px!important;border-radius:8px!important;
+  }
+  #appView.app-view .prediction-inputs{width:40px!important}
+  #appView.app-view .prediction-input{
+    width:38px!important;height:40px!important;
+    font-size:.95rem!important;border-radius:9px!important;
+  }
 }
-.pltt-logo-image{object-fit:contain!important;object-position:center!important}
+
+@media(max-width:380px){
+  #appView.app-view{padding-top:230px!important}
+  #appView.app-view .prediction-row{
+    grid-template-columns:minmax(0,1fr) 28px 38px 38px 28px minmax(0,1fr)!important;
+    gap:2px!important;
+  }
+  #appView.app-view .fixture-badge-slot{width:28px!important;height:32px!important}
+  #appView.app-view .fixture-badge,
+  #appView.app-view .fixture-badge-placeholder{width:26px!important;height:26px!important}
+  #appView.app-view .prediction-inputs{width:38px!important}
+  #appView.app-view .prediction-input{width:36px!important;height:38px!important}
+}
 </style>
