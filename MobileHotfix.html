@@ -1,0 +1,29 @@
+<style>
+/* PLTT MOBILE HOTFIX: eliminate legacy artwork and force a football-app visual baseline. */
+@media (max-width:680px){
+  html,body{background:#050912!important;min-width:0!important}
+  body::before{
+    opacity:1!important;
+    background:
+      radial-gradient(circle at 8% 4%,rgba(255,255,255,.34) 0 1.5%,transparent 2.4%),
+      radial-gradient(circle at 92% 4%,rgba(255,255,255,.28) 0 1.5%,transparent 2.4%),
+      radial-gradient(ellipse at 50% 0%,rgba(112,125,255,.18),transparent 38%),
+      linear-gradient(180deg,#0b1323 0%,#07101b 38%,#050912 100%)!important;
+    background-size:auto,auto,auto,auto!important;
+    background-position:center,center,center,center!important;
+    filter:none!important;
+  }
+  body::after{
+    background:
+      linear-gradient(180deg,rgba(2,5,10,.08) 0%,rgba(2,5,10,.38) 48%,rgba(2,5,10,.88) 100%),
+      repeating-linear-gradient(168deg,transparent 0 84px,rgba(255,255,255,.018) 85px 86px,transparent 87px 150px)!important;
+    opacity:1!important;
+  }
+  .hero{background:linear-gradient(180deg,rgba(6,11,20,.2),rgba(6,11,20,.48))!important}
+  .promo-image{background:linear-gradient(145deg,#111c31,#07101c 55%,#0d1728)!important;background-image:none!important}
+  .app-view,.app-shell,.app-main{background:transparent!important}
+  .app-sidebar{background:rgba(3,7,14,.96)!important}
+  .tt-logo,.tt-logo.small,.hero-logo{background:transparent!important}
+  .pltt-logo-image{object-fit:contain!important}
+}
+</style>
