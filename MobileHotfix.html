@@ -1,67 +1,62 @@
 <style>
-/* PLTT MOBILE VISUAL FIX V0.5.9 */
-/* Mobile uses the same official stadium artwork as desktop. No generic artwork. */
+/* PLTT MOBILE VISUAL FIX V0.6.0 */
+/* Mobile is the primary layout: compact, vertical and content-led. */
 @media (max-width:680px){
-  html,body{
-    min-width:0!important;
-    background:#050912!important;
-  }
+  html,body{min-width:0!important;background:#050912!important}
 
   body::before{
-    content:""!important;
-    position:fixed!important;
-    inset:0!important;
-    z-index:-2!important;
-    pointer-events:none!important;
-    background:
-      linear-gradient(180deg,rgba(3,6,12,.34),rgba(3,6,12,.84)),
-      url("https://raw.githubusercontent.com/Dthomas1982/PLTT/main/assets/pltt-stadium-background.png") center center / cover no-repeat!important;
-    opacity:1!important;
-    filter:none!important;
+    content:""!important;position:fixed!important;inset:0!important;z-index:-2!important;pointer-events:none!important;
+    background:linear-gradient(180deg,rgba(3,6,12,.34),rgba(3,6,12,.84)),url("https://raw.githubusercontent.com/Dthomas1982/PLTT/main/assets/pltt-stadium-background.png") center center / cover no-repeat!important;
+    opacity:1!important;filter:none!important;
   }
-
   body::after{
-    content:""!important;
-    position:fixed!important;
-    inset:0!important;
-    z-index:-1!important;
-    pointer-events:none!important;
-    background:
-      linear-gradient(180deg,rgba(3,6,12,.08),rgba(3,6,12,.38) 46%,rgba(3,6,12,.84) 100%),
-      radial-gradient(circle at center,transparent 20%,rgba(0,0,0,.48) 100%)!important;
-    opacity:1!important;
+    content:""!important;position:fixed!important;inset:0!important;z-index:-1!important;pointer-events:none!important;
+    background:linear-gradient(180deg,rgba(3,6,12,.08),rgba(3,6,12,.38) 46%,rgba(3,6,12,.84) 100%),radial-gradient(circle at center,transparent 20%,rgba(0,0,0,.48) 100%)!important;opacity:1!important;
   }
 
-  .hero,
-  .app-view,
-  .app-shell,
-  .app-main{
-    background:transparent!important;
-  }
+  .hero,.app-view,.app-shell,.app-main{background:transparent!important}
+  .promo-image{background:url("https://raw.githubusercontent.com/Dthomas1982/PLTT/main/assets/pltt-stadium-background.png") center / cover no-repeat!important}
 
-  .promo-image{
-    background:url("https://raw.githubusercontent.com/Dthomas1982/PLTT/main/assets/pltt-stadium-background.png") center / cover no-repeat!important;
-    background-image:url("https://raw.githubusercontent.com/Dthomas1982/PLTT/main/assets/pltt-stadium-background.png")!important;
-  }
+  /* Kill the desktop shell's large vertical footprint on phones. */
+  .app-view{padding:0!important;min-height:0!important;height:auto!important}
+  .app-shell{display:flex!important;flex-direction:column!important;width:100%!important;min-height:0!important;height:auto!important;margin:0!important;border:0!important;border-radius:0!important;overflow:visible!important;backdrop-filter:none!important;box-shadow:none!important}
+  .app-sidebar{display:block!important;flex:none!important;width:100%!important;height:auto!important;min-height:0!important;margin:0!important;padding:10px 12px!important;border-right:0!important;border-bottom:1px solid var(--line)!important;background:rgba(4,8,14,.96)!important;position:sticky!important;top:0!important;z-index:20!important}
+  .app-brand{height:42px!important;min-height:42px!important;padding:0 2px!important;border:0!important;display:flex!important;align-items:center!important}
+  .app-brand .tt-logo.small{width:38px!important;height:38px!important;border-radius:10px!important}
+  .app-nav{display:flex!important;flex-direction:row!important;gap:5px!important;padding:8px 0 0!important;margin:0!important;overflow-x:auto!important;scrollbar-width:none!important}
+  .app-nav::-webkit-scrollbar{display:none}
+  .app-nav-item{flex:0 0 auto!important;width:auto!important;white-space:nowrap!important;text-align:center!important;padding:8px 10px!important;font-size:.68rem!important;border-radius:10px!important}
+  .app-logout{display:block!important;position:absolute!important;right:12px!important;top:10px!important;width:auto!important;margin:0!important;padding:7px 9px!important;font-size:.62rem!important}
 
-  .tt-logo,
-  .tt-logo.small,
-  .hero-logo{
-    background:transparent!important;
-  }
+  .app-main{width:100%!important;min-height:0!important;height:auto!important;padding:16px 12px 28px!important}
+  .app-header{padding-bottom:13px!important;gap:8px!important}
+  .app-header h1{font-size:1.5rem!important;margin:3px 0!important}
+  .app-header p:last-child{font-size:.72rem!important}
+  .app-player-pill{padding:7px 9px!important;font-size:.62rem!important}
+  .app-content{padding-top:14px!important}
 
-  .pltt-logo-image{
-    display:block!important;
-    width:100%!important;
-    height:100%!important;
-    object-fit:contain!important;
-    object-position:center!important;
-  }
+  /* Dashboard is one vertical column on mobile, never a desktop 2x2 grid. */
+  .app-content-grid{display:flex!important;flex-direction:column!important;width:100%!important;gap:10px!important}
+  .app-card{width:100%!important;padding:16px!important;border-radius:17px!important}
+  .app-card h2{font-size:1.12rem!important;margin-bottom:6px!important}
+  .app-card p{font-size:.78rem!important;line-height:1.5!important}
+  .app-card .app-action,.app-card .app-card-action{margin-top:12px!important;padding:12px!important;font-size:.72rem!important}
+  .app-stat-row{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important;margin-top:12px!important}
+  .app-stat{padding:10px 5px!important}
+  .app-stat strong{font-size:1rem!important}.app-stat span{font-size:.58rem!important}
+
+  /* Prediction Centre remains compact and horizontal in the fixture row. */
+  .prediction-fixture-card{padding:10px 6px!important;border-radius:14px!important}
+  .prediction-row{grid-template-columns:minmax(0,1fr) 34px 44px 44px 34px minmax(0,1fr)!important;gap:2px!important;min-height:50px!important}
+  .fixture-team{font-size:.64rem!important;line-height:1.05!important}
+  .fixture-badge-slot{width:34px!important;height:36px!important}
+  .fixture-badge,.fixture-badge-placeholder{width:30px!important;height:30px!important;padding:2px!important;border-radius:8px!important}
+  .prediction-inputs{width:44px!important}.prediction-input{width:40px!important;height:42px!important;font-size:.98rem!important;border-radius:9px!important}
+  .prediction-actions .btn-primary{width:100%!important;min-width:0!important}
+
+  .tt-logo,.tt-logo.small,.hero-logo{background:transparent!important}
+  .pltt-logo-image{display:block!important;object-fit:contain!important;object-position:center!important}
 }
 
-/* Ensure the supplied crest is also correct on larger screens. */
-.pltt-logo-image{
-  object-fit:contain!important;
-  object-position:center!important;
-}
+.pltt-logo-image{object-fit:contain!important;object-position:center!important}
 </style>
