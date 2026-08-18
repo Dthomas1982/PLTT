@@ -31,6 +31,13 @@ function getCurrentGameweekFixtures() {
     .getRange(2, 1, lastRow - 1, lastColumn)
     .getValues();
 
+  // Use the sheet's displayed values for presentation fields such as
+  // Date and KickOff. This preserves exactly what the Fixtures sheet shows
+  // and avoids Apps Script timezone conversion changing the displayed time.
+  const displayValues = sheet
+    .getRange(2, 1, lastRow - 1, lastColumn)
+    .getDisplayValues();
+
   const index = buildHeaderIndex(headers);
 
   const required = [
@@ -73,12 +80,21 @@ function getCurrentGameweekFixtures() {
   const teams = getTeamsLookup();
 
   return values
-    .filter(function(row) {
+    .map(function(row, rowIndex) {
+      return {
+        row: row,
+        displayRow: displayValues[rowIndex]
+      };
+    })
+    .filter(function(item) {
       return String(
-        row[index.gameweekid] || ''
+        item.row[index.gameweekid] || ''
       ).trim() === targetGameweek;
     })
-    .map(function(row) {
+    .map(function(item) {
+
+      const row = item.row;
+      const displayRow = item.displayRow;
 
       const homeTeamID = String(
         row[index.hometeamid] || ''
@@ -102,12 +118,12 @@ function getCurrentGameweekFixtures() {
           row[index.seasonid] || ''
         ),
         gameweekID: targetGameweek,
-        date: formatFixtureDate(
-          row[index.date]
-        ),
-        kickoff: formatFixtureTime(
-          row[index.kickoff]
-        ),
+        date: String(
+          displayRow[index.date] || ''
+        ).trim(),
+        kickoff: String(
+          displayRow[index.kickoff] || ''
+        ).trim(),
         status:
           index.status !== undefined
             ? String(row[index.status] || '')
