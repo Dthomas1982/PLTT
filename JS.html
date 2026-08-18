@@ -2,13 +2,14 @@
 /**********************************************************************
  * PLTT Platform
  * JS.html
- * Version: 0.5.4
+ * Version: 0.5.5
  *
  * Release:
  * - Prediction Centre integrated into client architecture
  * - Prediction entry and save/load flow
  * - Stable authentication preserved
  * - Fixed six-column fixture layout
+ * - Uniform badge fallback and responsive fixture controls
  **********************************************************************/
 
 (function (window, document) {
@@ -461,10 +462,20 @@
       const kickoff = fixture.kickoff || fixture.kickOff || "Kick-off TBC";
       const homeName = home.clubName || home.name || "Home team";
       const awayName = away.clubName || away.name || "Away team";
+      const homeShort = home.shortName || home.code || home.teamID || "H";
+      const awayShort = away.shortName || away.code || away.teamID || "A";
       const homeBadge = home.badgeURL || home.badge || "";
       const awayBadge = away.badgeURL || away.badge || "";
+      const homePrimary = home.primaryColour || "#222";
+      const homeSecondary = home.secondaryColour || "#fff";
+      const awayPrimary = away.primaryColour || "#222";
+      const awaySecondary = away.secondaryColour || "#fff";
       const homePrediction = saved && saved.homePrediction !== undefined ? saved.homePrediction : "";
       const awayPrediction = saved && saved.awayPrediction !== undefined ? saved.awayPrediction : "";
+
+      const badgeMarkup = (url, shortName, primary, secondary) => url
+        ? `<img src="${this.escapeAttribute(url)}" class="fixture-badge" alt="" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="fixture-badge-placeholder" hidden style="--badge-primary:${this.escapeAttribute(primary)};--badge-secondary:${this.escapeAttribute(secondary)}">${this.escapeHtml(shortName)}</span>`
+        : `<span class="fixture-badge-placeholder" style="--badge-primary:${this.escapeAttribute(primary)};--badge-secondary:${this.escapeAttribute(secondary)}">${this.escapeHtml(shortName)}</span>`;
 
       return `
         <article class="prediction-fixture-card" data-match-id="${this.escapeAttribute(matchID)}">
@@ -475,22 +486,14 @@
 
           <div class="prediction-row">
             <div class="fixture-team home-name">${this.escapeHtml(homeName)}</div>
-            <div class="fixture-badge-slot home-badge">
-              ${homeBadge
-                ? `<img src="${this.escapeAttribute(homeBadge)}" class="fixture-badge" alt="" loading="lazy">`
-                : `<span class="fixture-badge-placeholder">H</span>`}
-            </div>
+            <div class="fixture-badge-slot home-badge">${badgeMarkup(homeBadge, homeShort, homePrimary, homeSecondary)}</div>
             <div class="prediction-inputs home-score">
               <input type="number" class="prediction-input" data-match-id="${this.escapeAttribute(matchID)}" data-side="home" inputmode="numeric" min="0" max="20" step="1" value="${this.escapeAttribute(homePrediction)}">
             </div>
             <div class="prediction-inputs away-score">
               <input type="number" class="prediction-input" data-match-id="${this.escapeAttribute(matchID)}" data-side="away" inputmode="numeric" min="0" max="20" step="1" value="${this.escapeAttribute(awayPrediction)}">
             </div>
-            <div class="fixture-badge-slot away-badge">
-              ${awayBadge
-                ? `<img src="${this.escapeAttribute(awayBadge)}" class="fixture-badge" alt="" loading="lazy">`
-                : `<span class="fixture-badge-placeholder">A</span>`}
-            </div>
+            <div class="fixture-badge-slot away-badge">${badgeMarkup(awayBadge, awayShort, awayPrimary, awaySecondary)}</div>
             <div class="fixture-team away-name">${this.escapeHtml(awayName)}</div>
           </div>
         </article>
