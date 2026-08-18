@@ -1,12 +1,14 @@
 /**********************************************************************
  * PLTT Platform
  * Teams.js
- * Version: 0.5.4
+ * Version: 0.5.5
  *
  * Release:
  * - Teams Sheet remains source of truth
  * - TeamID is the canonical badge key
  * - Club badges are served from the PLTT repository assets
+ * - Bournemouth/Brentford use verified external fallbacks because the
+ *   current PLTT asset endpoints are not both reliable
  * - No browser-relative badge filenames
  *
  * Status:
@@ -14,10 +16,19 @@
  **********************************************************************/
 
 const PLTT_BADGE_BASE_URL = 'https://raw.githubusercontent.com/Dthomas1982/PLTT/main/assets/badges/';
+const PLTT_BADGE_FALLBACK_URLS = {
+  BOU: 'https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/England%20-%20Premier%20League/AFC%20Bournemouth.png',
+  BRE: 'https://raw.githubusercontent.com/luukhopman/football-logos/master/logos/England%20-%20Premier%20League/Brentford%20FC.png'
+};
 
 function getTeamBadgeUrl(teamID) {
   const key = String(teamID || '').trim().toUpperCase();
   if (!key) return '';
+
+  if (PLTT_BADGE_FALLBACK_URLS[key]) {
+    return PLTT_BADGE_FALLBACK_URLS[key];
+  }
+
   return PLTT_BADGE_BASE_URL + encodeURIComponent(key) + '.png';
 }
 
