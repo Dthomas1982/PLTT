@@ -1,6 +1,6 @@
 <style>
-/* PLTT MOBILE VISUAL FIX V0.6.1 */
-/* Mobile is the primary layout: compact, vertical and content-led. */
+/* PLTT MOBILE VISUAL FIX V0.6.2 */
+/* Mobile fixture rows are deliberately structured for the narrow Google Sites iframe. */
 @media (max-width:680px){
   html,body{min-width:0!important;background:#050912!important}
 
@@ -17,7 +17,7 @@
   .hero,.app-view,.app-shell,.app-main{background:transparent!important}
   .promo-image{background:url("https://raw.githubusercontent.com/Dthomas1982/PLTT/main/assets/pltt-stadium-background.png") center / cover no-repeat!important}
 
-  /* Google Sites embeds its own mobile header above the iframe. Reserve a safe area so PLTT content is never hidden underneath it. */
+  /* Google Sites embeds its own mobile header above the iframe. */
   .app-view{padding:44px 0 0!important;min-height:0!important;height:auto!important}
   #publicView{padding-top:44px!important}
 
@@ -37,7 +37,6 @@
   .app-player-pill{padding:7px 9px!important;font-size:.62rem!important}
   .app-content{padding-top:14px!important}
 
-  /* Dashboard is one vertical column on mobile, never a desktop 2x2 grid. */
   .app-content-grid{display:flex!important;flex-direction:column!important;width:100%!important;gap:10px!important}
   .app-card{width:100%!important;padding:16px!important;border-radius:17px!important}
   .app-card h2{font-size:1.12rem!important;margin-bottom:6px!important}
@@ -47,11 +46,18 @@
   .app-stat{padding:10px 5px!important}
   .app-stat strong{font-size:1rem!important}.app-stat span{font-size:.58rem!important}
 
-  /* Prediction Centre: HOME NAME | HOME BADGE | HOME SCORE | AWAY SCORE | AWAY BADGE | AWAY NAME */
+  /* Five visual sections on the narrow iframe:
+     HOME TEAM | HOME BADGE | SCORE | AWAY BADGE | AWAY TEAM
+     The two score inputs share the centre section side-by-side. */
   .prediction-fixture-card{padding:10px 6px!important;border-radius:14px!important;overflow:hidden!important}
-  .prediction-row{grid-template-columns:minmax(0,1fr) 30px 40px 40px 30px minmax(0,1fr)!important;gap:2px!important;min-height:50px!important;width:100%!important}
+  .prediction-row{grid-template-columns:minmax(0,1fr) 30px 82px 30px minmax(0,1fr)!important;gap:3px!important;min-height:50px!important;width:100%!important;align-items:center!important}
   .fixture-team{font-size:.62rem!important;line-height:1.08!important;min-width:0!important;overflow-wrap:normal!important;word-break:normal!important}
-  .home-name{text-align:right!important;padding-right:2px!important}.away-name{text-align:left!important;padding-left:2px!important}
+  .home-name{grid-column:1!important;grid-row:1!important;text-align:right!important;padding-right:2px!important}
+  .home-badge{grid-column:2!important;grid-row:1!important}
+  .home-score{grid-column:3!important;grid-row:1!important;justify-self:start!important}
+  .away-score{grid-column:3!important;grid-row:1!important;justify-self:end!important}
+  .away-badge{grid-column:4!important;grid-row:1!important}
+  .away-name{grid-column:5!important;grid-row:1!important;text-align:left!important;padding-left:2px!important}
   .fixture-badge-slot{width:30px!important;height:34px!important;display:grid!important;place-items:center!important}
   .fixture-badge,.fixture-badge-placeholder{width:28px!important;height:28px!important;padding:2px!important;border-radius:8px!important}
   .prediction-inputs{width:40px!important;display:flex!important;align-items:center!important;justify-content:center!important}
