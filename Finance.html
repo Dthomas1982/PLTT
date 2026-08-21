@@ -1,0 +1,36 @@
+<style>
+.pltt-finance-card{margin-top:14px;padding:18px 20px;border:1px solid rgba(165,139,255,.22);border-radius:18px;background:linear-gradient(135deg,rgba(20,18,42,.88),rgba(8,12,20,.92));box-shadow:0 12px 35px rgba(0,0,0,.18)}
+.pltt-finance-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}.pltt-finance-head h2{margin:3px 0 0;font-size:1.15rem}.pltt-finance-head p{margin:0;color:#8e9aaf;font-size:.72rem}
+.pltt-finance-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.pltt-finance-stat{padding:13px 12px;border-radius:13px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06)}.pltt-finance-stat strong{display:block;font-size:1.12rem;color:#f6f3ff}.pltt-finance-stat span{display:block;margin-top:4px;color:#8e9aaf;font-size:.62rem;text-transform:uppercase;letter-spacing:.06em}
+@media(max-width:680px){.pltt-finance-card{padding:15px 14px;border-radius:16px}.pltt-finance-grid{grid-template-columns:1fr;gap:7px}.pltt-finance-stat{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px}.pltt-finance-stat span{margin:0}.pltt-finance-stat strong{font-size:1rem}}
+</style>
+<script>
+(function(){
+  function install(){
+    if(!window.PLTT || window.PLTT._financeDashboardInstalled) return;
+    window.PLTT._financeDashboardInstalled = true;
+    const originalShowAppView = window.PLTT.showAppView.bind(window.PLTT);
+    const money = value => "£" + Number(value || 0).toFixed(2);
+
+    function loadFinance(){
+      const content = document.getElementById("appContent");
+      if(!content || document.getElementById("plttFinanceCard")) return;
+      google.script.run.withSuccessHandler(result => {
+        if(!result || result.success !== true || !result.data) return;
+        const data = result.data;
+        const card = document.createElement("section");
+        card.id = "plttFinanceCard";
+        card.className = "pltt-finance-card";
+        card.innerHTML = `<div class="pltt-finance-head"><div><p class="season">LIVE COMPETITION</p><h2>Prize Pots</h2></div><p>Gameweek ${PLTT.escapeHtml ? PLTT.escapeHtml(data.gameweekID || "") : (data.gameweekID || "")}</p></div><div class="pltt-finance-grid"><div class="pltt-finance-stat"><strong>${money(data.weeklyPrizePot)}</strong><span>Weekly Prize</span></div><div class="pltt-finance-stat"><strong>${money(data.seasonPrizePot)}</strong><span>Season Prize Pot</span></div><div class="pltt-finance-stat"><strong>${Number(data.gameweekEntries || 0)}</strong><span>Gameweek Entries</span></div></div>`;
+        content.appendChild(card);
+      }).withFailureHandler(() => {}).getCompetitionFinancials();
+    }
+
+    window.PLTT.showAppView = function(view){
+      originalShowAppView(view);
+      if(view === "dashboard") setTimeout(loadFinance, 0);
+    };
+  }
+  if(window.PLTT) install(); else document.addEventListener("DOMContentLoaded", install);
+})();
+</script>
