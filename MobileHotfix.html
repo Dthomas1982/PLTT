@@ -1,5 +1,5 @@
 <style>
-/* PLTT MOBILE VISUAL FIX V0.6.2 */
+/* PLTT MOBILE VISUAL FIX V0.6.3 */
 /* Mobile fixture rows are deliberately structured for the narrow Google Sites iframe. */
 @media (max-width:680px){
   html,body{min-width:0!important;background:#050912!important}
@@ -17,17 +17,18 @@
   .hero,.app-view,.app-shell,.app-main{background:transparent!important}
   .promo-image{background:url("https://raw.githubusercontent.com/Dthomas1982/PLTT/main/assets/pltt-stadium-background.png") center / cover no-repeat!important}
 
-  /* Google Sites embeds its own mobile header above the iframe. */
-  .app-view{padding:44px 0 0!important;min-height:0!important;height:auto!important}
-  #publicView{padding-top:44px!important}
+  /* Google Sites embeds its own mobile header above the iframe. Keep the deliberate 200px breathing space. */
+  .app-view{padding:200px 0 0!important;min-height:0!important;height:auto!important}
+  #publicView{padding-top:200px!important}
 
   .app-shell{display:flex!important;flex-direction:column!important;width:100%!important;min-height:0!important;height:auto!important;margin:0!important;border:0!important;border-radius:0!important;overflow:visible!important;backdrop-filter:none!important;box-shadow:none!important}
   .app-sidebar{display:block!important;flex:none!important;width:100%!important;height:auto!important;min-height:0!important;margin:0!important;padding:10px 12px!important;border-right:0!important;border-bottom:1px solid var(--line)!important;background:rgba(4,8,14,.96)!important;position:sticky!important;top:0!important;z-index:20!important}
   .app-brand{height:42px!important;min-height:42px!important;padding:0 2px!important;border:0!important;display:flex!important;align-items:center!important}
   .app-brand .tt-logo.small{width:38px!important;height:38px!important;border-radius:10px!important}
-  .app-nav{display:flex!important;flex-direction:row!important;gap:5px!important;padding:8px 0 0!important;margin:0!important;overflow-x:auto!important;scrollbar-width:none!important}
-  .app-nav::-webkit-scrollbar{display:none}
-  .app-nav-item{flex:0 0 auto!important;width:auto!important;white-space:nowrap!important;text-align:center!important;padding:8px 10px!important;font-size:.68rem!important;border-radius:10px!important}
+
+  /* Never hide navigation items on mobile. All player-area sections remain visible and tappable. */
+  .app-nav{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-auto-rows:minmax(34px,auto)!important;gap:5px!important;padding:8px 0 0!important;margin:0!important;overflow:visible!important}
+  .app-nav-item{min-width:0!important;width:100%!important;white-space:nowrap!important;text-align:center!important;padding:8px 4px!important;font-size:.62rem!important;border-radius:10px!important;overflow:hidden!important;text-overflow:ellipsis!important}
   .app-logout{display:block!important;position:absolute!important;right:12px!important;top:10px!important;width:auto!important;margin:0!important;padding:7px 9px!important;font-size:.62rem!important}
 
   .app-main{width:100%!important;min-height:0!important;height:auto!important;padding:16px 12px 28px!important}
