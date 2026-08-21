@@ -1,25 +1,10 @@
 /**********************************************************************
  * PLTT Platform
  * Leaderboard.js
- * Version: 0.6.0
+ * Version: 0.7.0
  *
- * Release:
- * - Weekly scoring engine
- * - Season leaderboard calculation
- * - Exact / margin / result counts
- * - Last completed Gameweek score
- * - Position movement
- * - Player season summary synchronisation
- * - Live scoring as fixtures are completed
- *
- * Scoring:
- * - Exact score: 10 points
- * - Correct result + margin: 5 points
- * - Correct result: 2 points
- * - Wrong result: 0 points
- *
- * Status:
- * Production
+ * Weekly scoring engine + public weekly/season leaderboard data.
+ * Scoring: Exact 10 | Margin 5 | Result 2.
  **********************************************************************/
 
 const LEADERBOARD_POINTS = {
@@ -29,15 +14,12 @@ const LEADERBOARD_POINTS = {
 };
 
 function recalculateLeaderboard() {
-
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
-
   try {
     const scorableGameweeks = getScorableGameweeks_();
     const players = getActivePlayersForLeaderboard_();
     const previousRanks = getPreviousLeaderboardRanks_();
-
     const totals = {};
 
     players.forEach(function(player) {
@@ -56,40 +38,20 @@ function recalculateLeaderboard() {
     let latestScoredGameweek = '';
 
     scorableGameweeks.forEach(function(gameweek) {
-
       latestScoredGameweek = gameweek.gameweekID;
-
-      const fixtures = gameweek.fixtures;
       const fixtureMap = {};
-
-      fixtures.forEach(function(fixture) {
+      gameweek.fixtures.forEach(function(fixture) {
         fixtureMap[fixture.matchID] = fixture;
       });
 
       players.forEach(function(player) {
+        const predictionSet = getPlayerPredictionSet(player.playerID, gameweek.gameweekID);
+        if (!predictionSet) return;
 
-        const predictionSet = getPlayerPredictionSet(
-          player.playerID,
-          gameweek.gameweekID
-        );
-
-        if (!predictionSet) {
-          return;
-        }
-
-        const items = getPredictionItems(
-          predictionSet.predictionSetID
-        );
-
-        // A player only counts as having played the Gameweek once they have
-        // a complete prediction set. Individual completed fixtures are then
-        // scored live as their official results are entered.
-        if (!isCompletePredictionSet_(items, gameweek.allFixtures)) {
-          return;
-        }
+        const items = getPredictionItems(predictionSet.predictionSetID);
+        if (!isCompletePredictionSet_(items, gameweek.allFixtures)) return;
 
         setPredictionSetSubmitted_(predictionSet.predictionSetID, true);
-
         const week = scorePredictionSet_(items, fixtureMap);
         const total = totals[player.playerID];
 
@@ -102,31 +64,19 @@ function recalculateLeaderboard() {
       });
     });
 
-    const rows = Object.keys(totals)
-      .map(function(playerID) {
-        return totals[playerID];
-      })
-      .sort(function(a, b) {
-        if (b.points !== a.points) {
-          return b.points - a.points;
-        }
-        return a.player.localeCompare(b.player);
-      });
+    const rows = Object.keys(totals).map(function(playerID) {
+      return totals[playerID];
+    }).sort(function(a, b) {
+      if (b.points !== a.points) return b.points - a.points;
+      return a.player.localeCompare(b.player);
+    });
 
     let lastPoints = null;
     let currentPosition = 0;
-
     rows.forEach(function(row, index) {
-      if (lastPoints === null || row.points !== lastPoints) {
-        currentPosition = index + 1;
-      }
-
+      if (lastPoints === null || row.points !== lastPoints) currentPosition = index + 1;
       row.position = currentPosition;
-      row.movement = formatMovement_(
-        previousRanks[row.player],
-        currentPosition
-      );
-
+      row.movement = formatMovement_(previousRanks[row.player], currentPosition);
       lastPoints = row.points;
     });
 
@@ -140,7 +90,6 @@ function recalculateLeaderboard() {
       players: rows.length,
       leaderboard: rows
     };
-
   } finally {
     SpreadsheetApp.flush();
     lock.releaseLock();
@@ -148,20 +97,12 @@ function recalculateLeaderboard() {
 }
 
 function getLeaderboardData() {
-
   const sheet = getSheet(SHEETS.LEADERBOARD);
   const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return [];
 
-  if (lastRow <= 1) {
-    return [];
-  }
-
-  return sheet
-    .getRange(2, 1, lastRow - 1, 9)
-    .getValues()
-    .filter(function(row) {
-      return String(row[1] || '').trim() !== '';
-    })
+  return sheet.getRange(2, 1, lastRow - 1, 9).getValues()
+    .filter(function(row) { return String(row[1] || '').trim() !== ''; })
     .map(function(row) {
       return {
         position: Number(row[0] || 0),
@@ -177,63 +118,101 @@ function getLeaderboardData() {
     });
 }
 
-function getScorableGameweeks_() {
+function getSeasonLeaderboardPageData() {
+  recalculateLeaderboard();
+  const rows = getLeaderboardData().filter(function(row) { return row.played > 0; });
+  return {
+    season: getCurrentSeason(),
+    competitionName: getCompetitionName(),
+    rows: rows
+  };
+}
 
+function getWeeklyLeaderboardPageData(gameweekID) {
+  const requested = String(gameweekID || '').trim();
+  const resolved = requested || resolveAuthoritativeGameweekID();
+  const group = getLeaderboardGameweek_(resolved);
+  const players = getActivePlayersForLeaderboard_();
+  const rows = [];
+
+  if (!group) {
+    return {
+      gameweekID: resolved,
+      season: getCurrentSeason(),
+      competitionName: getCompetitionName(),
+      fixturesCompleted: 0,
+      fixturesTotal: 0,
+      rows: []
+    };
+  }
+
+  const fixtureMap = {};
+  group.fixtures.forEach(function(fixture) { fixtureMap[fixture.matchID] = fixture; });
+
+  players.forEach(function(player) {
+    const predictionSet = getPlayerPredictionSet(player.playerID, resolved);
+    if (!predictionSet) return;
+    const items = getPredictionItems(predictionSet.predictionSetID);
+    if (!isCompletePredictionSet_(items, group.allFixtures)) return;
+
+    const week = scorePredictionSet_(items, fixtureMap);
+    rows.push({
+      position: 0,
+      player: player.displayName,
+      played: 1,
+      points: week.points,
+      exact: week.exact,
+      margins: week.margins,
+      results: week.results,
+      lastWeek: week.points,
+      movement: '—'
+    });
+  });
+
+  rows.sort(function(a, b) {
+    if (b.points !== a.points) return b.points - a.points;
+    if (b.exact !== a.exact) return b.exact - a.exact;
+    if (b.margins !== a.margins) return b.margins - a.margins;
+    return a.player.localeCompare(b.player);
+  });
+
+  let lastPoints = null;
+  let position = 0;
+  rows.forEach(function(row, index) {
+    if (lastPoints === null || row.points !== lastPoints) position = index + 1;
+    row.position = position;
+    lastPoints = row.points;
+  });
+
+  return {
+    gameweekID: resolved,
+    season: getCurrentSeason(),
+    competitionName: getCompetitionName(),
+    fixturesCompleted: group.fixtures.length,
+    fixturesTotal: group.allFixtures.length,
+    rows: rows
+  };
+}
+
+function getScorableGameweeks_() {
   const sheet = getSheet(SHEETS.FIXTURES);
   const lastRow = sheet.getLastRow();
   const lastColumn = sheet.getLastColumn();
+  if (lastRow <= 1 || lastColumn <= 0) return [];
 
-  if (lastRow <= 1 || lastColumn <= 0) {
-    return [];
-  }
-
-  const headers = sheet
-    .getRange(1, 1, 1, lastColumn)
-    .getValues()[0];
-
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
   const index = buildHeaderIndex(headers);
-
-  const required = [
-    'matchid',
-    'seasonid',
-    'gameweekid',
-    'date',
-    'status',
-    'homegoals',
-    'awaygoals'
-  ];
-
-  required.forEach(function(key) {
-    if (index[key] === undefined) {
-      throw new Error(
-        'Fixtures sheet must contain a ' + key + ' column.'
-      );
-    }
+  ['matchid', 'seasonid', 'gameweekid', 'date', 'status', 'homegoals', 'awaygoals'].forEach(function(key) {
+    if (index[key] === undefined) throw new Error('Fixtures sheet must contain a ' + key + ' column.');
   });
 
-  const values = sheet
-    .getRange(2, 1, lastRow - 1, lastColumn)
-    .getValues();
-
+  const values = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
   const groups = {};
 
   values.forEach(function(row) {
-
-    const gameweekID = String(
-      row[index.gameweekid] || ''
-    ).trim();
-
-    if (!gameweekID) {
-      return;
-    }
-
-    if (!groups[gameweekID]) {
-      groups[gameweekID] = {
-        gameweekID: gameweekID,
-        allFixtures: [],
-        fixtures: []
-      };
-    }
+    const gameweekID = String(row[index.gameweekid] || '').trim();
+    if (!gameweekID) return;
+    if (!groups[gameweekID]) groups[gameweekID] = { gameweekID: gameweekID, allFixtures: [], fixtures: [] };
 
     const fixture = {
       matchID: String(row[index.matchid] || '').trim(),
@@ -242,152 +221,103 @@ function getScorableGameweeks_() {
       homeGoals: toScore_(row[index.homegoals]),
       awayGoals: toScore_(row[index.awaygoals])
     };
-
     groups[gameweekID].allFixtures.push(fixture);
-
-    if (
-      fixture.status.toLowerCase() === 'completed' &&
-      fixture.homeGoals !== null &&
-      fixture.awayGoals !== null
-    ) {
+    if (fixture.status.toLowerCase() === 'completed' && fixture.homeGoals !== null && fixture.awayGoals !== null) {
       groups[gameweekID].fixtures.push(fixture);
     }
   });
 
-  return Object.keys(groups)
-    .map(function(gameweekID) {
-      return groups[gameweekID];
-    })
-    .filter(function(gameweek) {
-      return gameweek.fixtures.length > 0;
-    })
-    .sort(function(a, b) {
-      return getEarliestFixtureDate_(a.allFixtures) -
-        getEarliestFixtureDate_(b.allFixtures);
-    });
+  return Object.keys(groups).map(function(id) { return groups[id]; })
+    .filter(function(gameweek) { return gameweek.fixtures.length > 0; })
+    .sort(function(a, b) { return getEarliestFixtureDate_(a.allFixtures) - getEarliestFixtureDate_(b.allFixtures); });
 }
 
-function getEarliestFixtureDate_(fixtures) {
+function getLeaderboardGameweek_(gameweekID) {
+  gameweekID = String(gameweekID || '').trim();
+  if (!gameweekID) return null;
 
-  let earliest = null;
+  const sheet = getSheet(SHEETS.FIXTURES);
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  if (lastRow <= 1 || lastColumn <= 0) return null;
 
-  fixtures.forEach(function(fixture) {
-    const date = fixture.date instanceof Date
-      ? fixture.date.getTime()
-      : new Date(fixture.date).getTime();
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const index = buildHeaderIndex(headers);
+  const values = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
+  const group = { gameweekID: gameweekID, allFixtures: [], fixtures: [] };
 
-    if (!isNaN(date) && (earliest === null || date < earliest)) {
-      earliest = date;
+  values.forEach(function(row) {
+    if (String(row[index.gameweekid] || '').trim() !== gameweekID) return;
+    const fixture = {
+      matchID: String(row[index.matchid] || '').trim(),
+      date: row[index.date],
+      status: String(row[index.status] || '').trim(),
+      homeGoals: toScore_(row[index.homegoals]),
+      awayGoals: toScore_(row[index.awaygoals])
+    };
+    group.allFixtures.push(fixture);
+    if (fixture.status.toLowerCase() === 'completed' && fixture.homeGoals !== null && fixture.awayGoals !== null) {
+      group.fixtures.push(fixture);
     }
   });
 
+  return group.allFixtures.length ? group : null;
+}
+
+function getEarliestFixtureDate_(fixtures) {
+  let earliest = null;
+  fixtures.forEach(function(fixture) {
+    const date = fixture.date instanceof Date ? fixture.date.getTime() : new Date(fixture.date).getTime();
+    if (!isNaN(date) && (earliest === null || date < earliest)) earliest = date;
+  });
   return earliest === null ? Number.MAX_SAFE_INTEGER : earliest;
 }
 
 function getActivePlayersForLeaderboard_() {
-
   const sheet = getSheet(SHEETS.PLAYERS);
   const lastRow = sheet.getLastRow();
-
-  if (lastRow <= 1) {
-    return [];
-  }
-
-  const values = sheet
-    .getRange(2, 1, lastRow - 1, 10)
-    .getValues();
-
-  return values
+  if (lastRow <= 1) return [];
+  return sheet.getRange(2, 1, lastRow - 1, 10).getValues()
     .filter(function(row) {
-      return String(row[0] || '').trim() !== '' &&
-        String(row[2] || '').trim() !== '' &&
-        Boolean(row[5]) === true;
+      return String(row[0] || '').trim() !== '' && String(row[2] || '').trim() !== '' && Boolean(row[5]) === true;
     })
-    .map(function(row) {
-      return {
-        playerID: String(row[0]).trim(),
-        displayName: String(row[2]).trim()
-      };
-    });
+    .map(function(row) { return { playerID: String(row[0]).trim(), displayName: String(row[2]).trim() }; });
 }
 
 function getPreviousLeaderboardRanks_() {
-
   const sheet = getSheet(SHEETS.LEADERBOARD);
   const lastRow = sheet.getLastRow();
   const ranks = {};
-
-  if (lastRow <= 1) {
-    return ranks;
-  }
-
-  const values = sheet
-    .getRange(2, 1, lastRow - 1, 2)
-    .getValues();
-
-  values.forEach(function(row) {
+  if (lastRow <= 1) return ranks;
+  sheet.getRange(2, 1, lastRow - 1, 2).getValues().forEach(function(row) {
     const position = Number(row[0] || 0);
     const player = String(row[1] || '').trim();
-
-    if (position > 0 && player) {
-      ranks[player] = position;
-    }
+    if (position > 0 && player) ranks[player] = position;
   });
-
   return ranks;
 }
 
 function scorePredictionSet_(items, fixtureMap) {
-
-  const score = {
-    points: 0,
-    exact: 0,
-    margins: 0,
-    results: 0
-  };
-
+  const score = { points: 0, exact: 0, margins: 0, results: 0 };
   items.forEach(function(item) {
-
     const fixture = fixtureMap[item.matchID];
-
-    if (!fixture ||
-        item.homePrediction === '' ||
-        item.awayPrediction === '' ||
-        fixture.homeGoals === null ||
-        fixture.awayGoals === null) {
-      return;
-    }
+    if (!fixture || item.homePrediction === '' || item.awayPrediction === '' || fixture.homeGoals === null || fixture.awayGoals === null) return;
 
     const predictedHome = Number(item.homePrediction);
     const predictedAway = Number(item.awayPrediction);
     const actualHome = Number(fixture.homeGoals);
     const actualAway = Number(fixture.awayGoals);
 
-    if (predictedHome === actualHome &&
-        predictedAway === actualAway) {
+    if (predictedHome === actualHome && predictedAway === actualAway) {
       score.points += LEADERBOARD_POINTS.EXACT;
       score.exact += 1;
       return;
     }
 
-    const predictedResult = getResultSign_(
-      predictedHome,
-      predictedAway
-    );
-
-    const actualResult = getResultSign_(
-      actualHome,
-      actualAway
-    );
-
-    if (predictedResult === actualResult) {
+    if (getResultSign_(predictedHome, predictedAway) === getResultSign_(actualHome, actualAway)) {
       score.results += 1;
-
-      const predictedMargin =
-        Math.abs(predictedHome - predictedAway);
-      const actualMargin =
-        Math.abs(actualHome - actualAway);
-
+      const predictedMargin = Math.abs(predictedHome - predictedAway);
+      const actualMargin = Math.abs(actualHome - actualAway);
       if (predictedMargin === actualMargin) {
         score.points += LEADERBOARD_POINTS.MARGIN;
         score.margins += 1;
@@ -396,53 +326,30 @@ function scorePredictionSet_(items, fixtureMap) {
       }
     }
   });
-
   return score;
 }
 
 function getResultSign_(home, away) {
-
   if (home > away) return 1;
   if (home < away) return -1;
   return 0;
 }
 
 function isCompletePredictionSet_(items, fixtures) {
-
-  if (!items || !fixtures || items.length !== fixtures.length) {
-    return false;
-  }
-
+  if (!items || !fixtures || items.length !== fixtures.length) return false;
   const matches = {};
-
-  items.forEach(function(item) {
-    matches[String(item.matchID)] = item;
-  });
-
+  items.forEach(function(item) { matches[String(item.matchID)] = item; });
   return fixtures.every(function(fixture) {
     const item = matches[String(fixture.matchID)];
-
-    return item &&
-      item.homePrediction !== '' &&
-      item.awayPrediction !== '' &&
-      Number.isInteger(Number(item.homePrediction)) &&
-      Number.isInteger(Number(item.awayPrediction));
+    return item && item.homePrediction !== '' && item.awayPrediction !== '' && Number.isInteger(Number(item.homePrediction)) && Number.isInteger(Number(item.awayPrediction));
   });
 }
 
 function setPredictionSetSubmitted_(predictionSetID, submitted) {
-
   const sheet = getSheet(SHEETS.PREDICTIONSETS);
   const lastRow = sheet.getLastRow();
-
-  if (lastRow <= 1) {
-    return;
-  }
-
-  const values = sheet
-    .getRange(2, 1, lastRow - 1, 1)
-    .getValues();
-
+  if (lastRow <= 1) return;
+  const values = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
   for (let i = 0; i < values.length; i++) {
     if (String(values[i][0]) === String(predictionSetID)) {
       sheet.getRange(i + 2, 5).setValue(Boolean(submitted));
@@ -452,102 +359,40 @@ function setPredictionSetSubmitted_(predictionSetID, submitted) {
 }
 
 function writeLeaderboardSheet_(rows) {
-
   const sheet = getSheet(SHEETS.LEADERBOARD);
   const lastRow = sheet.getLastRow();
-
-  if (lastRow > 1) {
-    sheet
-      .getRange(2, 1, lastRow - 1, 9)
-      .clearContent();
-  }
-
-  if (!rows.length) {
-    return;
-  }
-
-  const output = rows.map(function(row) {
-    return [
-      row.position,
-      row.player,
-      row.played,
-      row.points,
-      row.exact,
-      row.margins,
-      row.results,
-      row.lastWeek,
-      row.movement
-    ];
-  });
-
-  sheet
-    .getRange(2, 1, output.length, 9)
-    .setValues(output);
+  if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, 9).clearContent();
+  if (!rows.length) return;
+  sheet.getRange(2, 1, rows.length, 9).setValues(rows.map(function(row) {
+    return [row.position, row.player, row.played, row.points, row.exact, row.margins, row.results, row.lastWeek, row.movement];
+  }));
 }
 
 function syncPlayerSeasonSummary_(rows) {
-
   const sheet = getSheet(SHEETS.PLAYERS);
   const lastRow = sheet.getLastRow();
-
-  if (lastRow <= 1) {
-    return;
-  }
-
-  const values = sheet
-    .getRange(2, 1, lastRow - 1, 10)
-    .getValues();
-
+  if (lastRow <= 1) return;
+  const values = sheet.getRange(2, 1, lastRow - 1, 10).getValues();
   const byName = {};
-
-  rows.forEach(function(row) {
-    byName[row.player] = row;
-  });
-
+  rows.forEach(function(row) { byName[row.player] = row; });
   values.forEach(function(row, index) {
     const displayName = String(row[2] || '').trim();
     const calculated = byName[displayName];
-
-    if (!calculated) {
-      return;
-    }
-
-    const sheetRow = index + 2;
-    sheet.getRange(sheetRow, 8, 1, 3).setValues([[
-      calculated.points,
-      calculated.position,
-      calculated.played
-    ]]);
+    if (!calculated) return;
+    sheet.getRange(index + 2, 8, 1, 3).setValues([[calculated.points, calculated.position, calculated.played]]);
   });
 }
 
 function formatMovement_(previousPosition, currentPosition) {
-
-  if (!previousPosition || previousPosition === currentPosition) {
-    return '—';
-  }
-
+  if (!previousPosition || previousPosition === currentPosition) return '—';
   const movement = previousPosition - currentPosition;
-
-  if (movement > 0) {
-    return '↑ ' + movement;
-  }
-
-  return '↓ ' + Math.abs(movement);
+  return movement > 0 ? '↑ ' + movement : '↓ ' + Math.abs(movement);
 }
 
 function toScore_(value) {
-
-  if (value === '' || value === null || value === undefined) {
-    return null;
-  }
-
+  if (value === '' || value === null || value === undefined) return null;
   const number = Number(value);
-
-  if (!Number.isInteger(number) || number < 0) {
-    return null;
-  }
-
+  if (!Number.isInteger(number) || number < 0) return null;
   return number;
 }
 
