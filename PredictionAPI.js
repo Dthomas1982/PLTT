@@ -22,7 +22,18 @@ function getPredictionCentreData(playerID) {
       return errorResponse("Website settings not found.");
     }
 
-    const fixtures = getCurrentGameweekFixtures();
+    // Keep the Prediction Centre on the authoritative Gameweek from the
+    // Gameweeks sheet. This prevents the player's saved predictions from
+    // disappearing simply because the Gameweek deadline has passed.
+    const gameweekID =
+      resolveAuthoritativeGameweekID() ||
+      settings.currentGameweek;
+
+    if (!gameweekID) {
+      return errorResponse("No current Gameweek is available.");
+    }
+
+    const fixtures = getGameweekFixturesByID(gameweekID);
 
     let predictions = [];
 
@@ -30,7 +41,7 @@ function getPredictionCentreData(playerID) {
 
       const predictionResult = loadPlayerPredictions(
         playerID,
-        settings.currentGameweek
+        gameweekID
       );
 
       if (
@@ -41,12 +52,22 @@ function getPredictionCentreData(playerID) {
       }
     }
 
+    const lockState = getGameweekLockState(gameweekID);
+
+    const stableSettings = Object.assign({}, settings, {
+      currentGameweek: gameweekID,
+      CurrentGameweek: gameweekID
+    });
+
     return successResponse(
       "Prediction Centre Loaded",
       {
-        settings: settings,
+        settings: stableSettings,
         fixtures: fixtures,
-        predictions: predictions
+        predictions: predictions,
+        gameweekID: gameweekID,
+        locked: Boolean(lockState.locked),
+        lockReason: lockState.reason || ""
       }
     );
 
@@ -77,9 +98,13 @@ function loadPredictionsServer(playerID) {
       return errorResponse("Website settings not found.");
     }
 
+    const gameweekID =
+      resolveAuthoritativeGameweekID() ||
+      settings.currentGameweek;
+
     return loadPlayerPredictions(
       playerID,
-      settings.currentGameweek
+      gameweekID
     );
 
   } catch (err) {
@@ -113,9 +138,13 @@ function savePredictionsServer(playerID, predictions) {
       return errorResponse("Website settings not found.");
     }
 
+    const gameweekID =
+      resolveAuthoritativeGameweekID() ||
+      settings.currentGameweek;
+
     const result = savePredictionSet(
       playerID,
-      settings.currentGameweek,
+      gameweekID,
       predictions
     );
 
@@ -124,7 +153,7 @@ function savePredictionsServer(playerID, predictions) {
         FEATURES.PREDICTION,
         "SAVE",
         playerID,
-        settings.currentGameweek
+        gameweekID
       );
     }
 
@@ -157,9 +186,13 @@ function clearPredictionsServer(playerID) {
       return errorResponse("Website settings not found.");
     }
 
+    const gameweekID =
+      resolveAuthoritativeGameweekID() ||
+      settings.currentGameweek;
+
     return clearPredictionSet(
       playerID,
-      settings.currentGameweek
+      gameweekID
     );
 
   } catch (err) {
