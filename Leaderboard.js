@@ -10,6 +10,7 @@
  * - Last completed Gameweek score
  * - Position movement
  * - Player season summary synchronisation
+ * - Live scoring as fixtures are completed
  *
  * Scoring:
  * - Exact score: 10 points
@@ -33,7 +34,7 @@ function recalculateLeaderboard() {
   lock.waitLock(30000);
 
   try {
-    const completedGameweeks = getCompletedGameweeks_();
+    const scorableGameweeks = getScorableGameweeks_();
     const players = getActivePlayersForLeaderboard_();
     const previousRanks = getPreviousLeaderboardRanks_();
 
@@ -52,11 +53,11 @@ function recalculateLeaderboard() {
       };
     });
 
-    let latestCompletedGameweek = '';
+    let latestScoredGameweek = '';
 
-    completedGameweeks.forEach(function(gameweek) {
+    scorableGameweeks.forEach(function(gameweek) {
 
-      latestCompletedGameweek = gameweek.gameweekID;
+      latestScoredGameweek = gameweek.gameweekID;
 
       const fixtures = gameweek.fixtures;
       const fixtureMap = {};
@@ -80,7 +81,10 @@ function recalculateLeaderboard() {
           predictionSet.predictionSetID
         );
 
-        if (!isCompletePredictionSet_(items, fixtures)) {
+        // A player only counts as having played the Gameweek once they have
+        // a complete prediction set. Individual completed fixtures are then
+        // scored live as their official results are entered.
+        if (!isCompletePredictionSet_(items, gameweek.allFixtures)) {
           return;
         }
 
@@ -131,8 +135,8 @@ function recalculateLeaderboard() {
 
     return {
       success: true,
-      gameweeksProcessed: completedGameweeks.length,
-      latestCompletedGameweek: latestCompletedGameweek,
+      gameweeksProcessed: scorableGameweeks.length,
+      latestScoredGameweek: latestScoredGameweek,
       players: rows.length,
       leaderboard: rows
     };
@@ -173,7 +177,7 @@ function getLeaderboardData() {
     });
 }
 
-function getCompletedGameweeks_() {
+function getScorableGameweeks_() {
 
   const sheet = getSheet(SHEETS.FIXTURES);
   const lastRow = sheet.getLastRow();
@@ -226,17 +230,28 @@ function getCompletedGameweeks_() {
     if (!groups[gameweekID]) {
       groups[gameweekID] = {
         gameweekID: gameweekID,
+        allFixtures: [],
         fixtures: []
       };
     }
 
-    groups[gameweekID].fixtures.push({
+    const fixture = {
       matchID: String(row[index.matchid] || '').trim(),
       date: row[index.date],
       status: String(row[index.status] || '').trim(),
       homeGoals: toScore_(row[index.homegoals]),
       awayGoals: toScore_(row[index.awaygoals])
-    });
+    };
+
+    groups[gameweekID].allFixtures.push(fixture);
+
+    if (
+      fixture.status.toLowerCase() === 'completed' &&
+      fixture.homeGoals !== null &&
+      fixture.awayGoals !== null
+    ) {
+      groups[gameweekID].fixtures.push(fixture);
+    }
   });
 
   return Object.keys(groups)
@@ -244,16 +259,11 @@ function getCompletedGameweeks_() {
       return groups[gameweekID];
     })
     .filter(function(gameweek) {
-      return gameweek.fixtures.length > 0 &&
-        gameweek.fixtures.every(function(fixture) {
-          return fixture.status.toLowerCase() === 'completed' &&
-            fixture.homeGoals !== null &&
-            fixture.awayGoals !== null;
-        });
+      return gameweek.fixtures.length > 0;
     })
     .sort(function(a, b) {
-      return getEarliestFixtureDate_(a.fixtures) -
-        getEarliestFixtureDate_(b.fixtures);
+      return getEarliestFixtureDate_(a.allFixtures) -
+        getEarliestFixtureDate_(b.allFixtures);
     });
 }
 
