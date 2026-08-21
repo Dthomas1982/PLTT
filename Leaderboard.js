@@ -27,12 +27,6 @@ const LEADERBOARD_POINTS = {
   RESULT: 2
 };
 
-/**
- * Recalculate the season leaderboard from completed Fixtures and submitted
- * PredictionSets. Only Gameweeks where every fixture is marked Completed are
- * scored. This makes the leaderboard stable while a Gameweek is still being
- * played.
- */
 function recalculateLeaderboard() {
 
   const lock = LockService.getScriptLock();
@@ -90,8 +84,6 @@ function recalculateLeaderboard() {
           return;
         }
 
-        // Keep the PredictionSets sheet accurate once a full submission
-        // exists. The existing prediction UI can still use Current to load it.
         setPredictionSetSubmitted_(predictionSet.predictionSetID, true);
 
         const week = scorePredictionSet_(items, fixtureMap);
@@ -127,7 +119,7 @@ function recalculateLeaderboard() {
 
       row.position = currentPosition;
       row.movement = formatMovement_(
-        previousRanks[row.playerID],
+        previousRanks[row.player],
         currentPosition
       );
 
@@ -151,10 +143,6 @@ function recalculateLeaderboard() {
   }
 }
 
-/**
- * Returns the current season leaderboard rows for the future leaderboard
- * pages. The calculation itself is kept separate from presentation.
- */
 function getLeaderboardData() {
 
   const sheet = getSheet(SHEETS.LEADERBOARD);
@@ -327,8 +315,6 @@ function getPreviousLeaderboardRanks_() {
     .getRange(2, 1, lastRow - 1, 2)
     .getValues();
 
-  // The public leaderboard sheet stores DisplayName rather than PlayerID.
-  // Keep a name-based fallback so movement works with the existing sheet.
   values.forEach(function(row) {
     const position = Number(row[0] || 0);
     const player = String(row[1] || '').trim();
@@ -458,14 +444,6 @@ function setPredictionSetSubmitted_(predictionSetID, submitted) {
 function writeLeaderboardSheet_(rows) {
 
   const sheet = getSheet(SHEETS.LEADERBOARD);
-
-  if (sheet.getMaxColumns() < 9) {
-    sheet.insertColumnsAfter(
-      sheet.getMaxColumns(),
-      9 - sheet.getMaxColumns()
-    );
-  }
-
   const lastRow = sheet.getLastRow();
 
   if (lastRow > 1) {
