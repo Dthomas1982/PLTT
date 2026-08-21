@@ -1,13 +1,14 @@
 /**********************************************************************
  * PLTT Platform
  * Config.js
- * Version: 0.5.3
+ * Version: 0.6.0
  *
  * Release:
  * - Prediction Centre integrated into client architecture
  * - Dynamic fixture pipeline
  * - Prediction persistence layer
  * - Stable Authentication Foundation
+ * - Authoritative PLTT scoring values
  *
  * Status:
  * Production
@@ -15,7 +16,7 @@
 
 const APP = {
   NAME: "Premier League Top Tipster",
-  VERSION: "0.5.3",
+  VERSION: "0.6.0",
   SEASON: "2026/27",
   TIMEZONE: Session.getScriptTimeZone()
 };
@@ -57,6 +58,6 @@ const GAME = {
 
 const POINTS = {
   CORRECT_RESULT: 2,
-  CORRECT_MARGIN: 1,
-  EXACT_SCORE: 3
+  CORRECT_MARGIN: 5,
+  EXACT_SCORE: 10
 };
