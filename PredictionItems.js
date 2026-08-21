@@ -1,12 +1,13 @@
 /**********************************************************************
  * PLTT Platform
  * PredictionItems.js
- * Version: 0.5.3
+ * Version: 0.5.4
  *
  * Release:
  * - Prediction Save Engine
  * - Prediction Item Data Layer
  * - Google Sheets Persistence
+ * - Authoritative Gameweek deadline lock
  *
  * Status:
  * Production
@@ -264,6 +265,25 @@ function savePredictionSet(playerID, gameweekID, predictions) {
     );
   }
 
+  // The Gameweeks sheet is the authoritative source for prediction
+  // deadlines. Enforce the lock on the server so it cannot be bypassed
+  // by changing the browser controls or calling the save endpoint directly.
+  const lockState = getGameweekLockState(gameweekID);
+
+  if (lockState.locked) {
+    logAction(
+      FEATURES.PREDICTION,
+      "SAVE_BLOCKED",
+      playerID,
+      gameweekID
+    );
+
+    return errorResponse(
+      lockState.reason ||
+      "Predictions are locked for this Gameweek."
+    );
+  }
+
   const predictionSet = getOrCreatePredictionSet(
     playerID,
     gameweekID
@@ -313,6 +333,15 @@ function loadPlayerPredictions(playerID, gameweekID) {
 }
 
 function clearPredictionSet(playerID, gameweekID) {
+
+  const lockState = getGameweekLockState(gameweekID);
+
+  if (lockState.locked) {
+    return errorResponse(
+      lockState.reason ||
+      "Predictions are locked for this Gameweek."
+    );
+  }
 
   const predictionSet = getPlayerPredictionSet(
     playerID,
