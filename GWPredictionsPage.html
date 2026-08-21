@@ -17,11 +17,10 @@
 .gw-fixture-badge{width:34px;height:34px;object-fit:contain;border-radius:9px;background:rgba(255,255,255,.95);padding:3px;flex:0 0 auto}
 .gw-fixture-time{text-align:center;color:#9da8bc;font-size:.68rem;white-space:nowrap}
 .gw-player-list{display:flex;flex-direction:column}
-.gw-player-row{display:grid;grid-template-columns:minmax(120px,1fr) 88px 88px;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,.055)}
+.gw-player-row{display:grid;grid-template-columns:minmax(120px,1fr) 100px;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,.055)}
 .gw-player-row:last-child{border-bottom:0}
 .gw-player-name{font-weight:750;overflow-wrap:anywhere}
 .gw-prediction{text-align:center;font-weight:900;font-size:1rem;letter-spacing:.02em}
-.gw-prediction.empty{font-weight:600;color:#68758b}
 .gw-column-label{font-size:.58rem;text-transform:uppercase;letter-spacing:.12em;color:#7f8ba0;text-align:center}
 .gw-no-submissions{padding:16px;color:#7f8ba0;text-align:center;font-size:.8rem}
 @media(max-width:680px){
@@ -34,7 +33,7 @@
   .gw-fixture-team{font-size:.68rem;line-height:1.08;gap:5px}
   .gw-fixture-badge{width:30px;height:30px;border-radius:8px}
   .gw-fixture-time{font-size:.55rem}
-  .gw-player-row{grid-template-columns:minmax(0,1fr) 58px 58px;gap:5px;padding:9px 10px}
+  .gw-player-row{grid-template-columns:minmax(0,1fr) 70px;gap:5px;padding:9px 10px}
   .gw-player-name{font-size:.7rem}
   .gw-prediction{font-size:.85rem}
   .gw-column-label{font-size:.5rem}
@@ -49,7 +48,6 @@
 
   const PLTT = window.PLTT;
 
-  /* Add the page before PLTT.init() binds the application navigation. */
   const nav = document.querySelector('.app-nav');
   if (nav && !nav.querySelector('[data-view="gameweekPredictions"]')) {
     const button = document.createElement('button');
@@ -85,7 +83,17 @@
     if (!content) return;
 
     const fixtures = Array.isArray(data.fixtures) ? data.fixtures : [];
-    const players = Array.isArray(data.players) ? data.players : [];
+
+    // Only players with at least one saved selection are shown on the public
+    // board. This prevents registered players who never submitted from
+    // appearing with blank predictions.
+    const allPlayers = Array.isArray(data.players) ? data.players : [];
+    const players = allPlayers.filter(function(player){
+      return (player.predictions || []).some(function(prediction){
+        return prediction.homePrediction !== '' || prediction.awayPrediction !== '';
+      });
+    });
+
     const predictionLookup = {};
 
     players.forEach(function(player){
@@ -101,17 +109,18 @@
     };
 
     const playerRows = function(fixture){
-      if (!players.length) return '<div class="gw-no-submissions">No players registered.</div>';
+      if (!players.length) return '<div class="gw-no-submissions">No predictions submitted.</div>';
 
       return players.map(function(player){
         const prediction = predictionLookup[player.playerID] && predictionLookup[player.playerID][String(fixture.matchID)]
           ? predictionLookup[player.playerID][String(fixture.matchID)]
           : {homePrediction:'',awayPrediction:''};
         const hasPrediction = prediction.homePrediction !== '' || prediction.awayPrediction !== '';
+        if (!hasPrediction) return '';
+
         return '<div class="gw-player-row">' +
           '<div class="gw-player-name">' + PLTT.escapeHtml(player.displayName) + '</div>' +
-          '<div class="gw-prediction ' + (hasPrediction ? '' : 'empty') + '">' + (hasPrediction ? PLTT.escapeHtml(prediction.homePrediction + ' - ' + prediction.awayPrediction) : '—') + '</div>' +
-          '<div class="gw-prediction ' + (hasPrediction ? '' : 'empty') + '">' + (hasPrediction ? 'Submitted' : 'No pick') + '</div>' +
+          '<div class="gw-prediction">' + PLTT.escapeHtml(prediction.homePrediction + ' - ' + prediction.awayPrediction) + '</div>' +
         '</div>';
       }).join('');
     };
@@ -127,7 +136,6 @@
         '<div class="gw-player-row">' +
           '<div class="gw-column-label" style="text-align:left">Player</div>' +
           '<div class="gw-column-label">Prediction</div>' +
-          '<div class="gw-column-label">Status</div>' +
         '</div>' +
         '<div class="gw-player-list">' + playerRows(fixture) + '</div>' +
       '</article>';
@@ -136,7 +144,7 @@
     content.innerHTML = '<section class="gw-predictions">' +
       '<div class="gw-board-header">' +
         '<div><p class="season">GAMEWEEK ' + PLTT.escapeHtml(data.gameweekID || '') + '</p><h2>All Player Predictions</h2><p>Predictions are now visible because the Gameweek is locked and in play.</p></div>' +
-        '<div class="gw-board-status"><strong>' + PLTT.escapeHtml(String(data.submissionCount || 0)) + ' submitted</strong><span>Players</span></div>' +
+        '<div class="gw-board-status"><strong>' + PLTT.escapeHtml(String(players.length)) + ' submitted</strong><span>Players</span></div>' +
       '</div>' +
       '<div class="gw-fixture-board">' + cards + '</div>' +
     '</section>';
