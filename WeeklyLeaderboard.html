@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#05070d">
+  <title>PLTT Weekly Leaderboard</title>
+  <style>
+    :root{--bg:#05070d;--card:#0b0f18;--card2:#101423;--line:rgba(255,255,255,.10);--purple:#9b7cff;--gold:#f5c95b;--muted:#9ca9bf;--white:#f7f8fb}
+    *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--white);font-family:Arial,Helvetica,sans-serif}body{min-height:100vh}.page{max-width:1180px;margin:0 auto;padding:28px 24px 60px}.top{display:flex;align-items:center;justify-content:space-between;padding-bottom:22px;border-bottom:1px solid var(--line)}.brand{display:flex;align-items:center;gap:12px}.brand img{width:46px;height:46px;object-fit:contain}.brand strong{display:block;font-size:18px}.brand span{display:block;color:var(--muted);font-size:12px;margin-top:3px}.back{color:#fff;text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:10px 16px;font-weight:800;font-size:13px}.hero{margin-top:34px;display:flex;justify-content:space-between;gap:24px;align-items:end}.eyebrow{color:var(--gold);font-size:12px;font-weight:900;letter-spacing:2px}.hero h1{font-size:42px;line-height:1.05;margin:8px 0}.hero p{color:var(--muted);margin:0}.switch{display:flex;gap:8px}.switch a{padding:11px 16px;border:1px solid var(--line);border-radius:12px;color:#cfd6e7;text-decoration:none;font-weight:800}.switch a.active{background:linear-gradient(135deg,#9878ff,#7653ed);border-color:transparent;color:#fff}.summary{margin-top:28px;background:linear-gradient(135deg,#111226,#0a0e17);border:1px solid rgba(155,124,255,.30);border-radius:20px;padding:20px 22px;display:flex;justify-content:space-between;align-items:center}.summary strong{font-size:26px}.summary span{display:block;color:var(--muted);font-size:13px;margin-top:4px}.table-card{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:20px;overflow:hidden}.table{width:100%;border-collapse:collapse}.table th{padding:15px 18px;text-align:left;color:#8f9bb1;font-size:11px;letter-spacing:1.3px;text-transform:uppercase;background:rgba(255,255,255,.025)}.table td{padding:16px 18px;border-top:1px solid var(--line);font-size:14px}.table td.num,.table th.num{text-align:center}.table tr:first-child td{background:rgba(155,124,255,.055)}.pos{font-weight:900}.medal{font-size:17px}.player{font-weight:800}.points{font-size:18px;font-weight:900}.muted{color:var(--muted)}.empty{padding:48px 22px;text-align:center;color:var(--muted)}.error{padding:24px;color:#ff9cae;background:#251019;border:1px solid rgba(255,100,130,.25);border-radius:16px;margin-top:24px}
+    @media(max-width:700px){.page{padding:200px 14px 40px}.top{align-items:flex-start}.brand img{width:38px;height:38px}.brand strong{font-size:15px}.back{font-size:11px;padding:8px 11px}.hero{display:block}.hero h1{font-size:32px}.switch{margin-top:18px}.switch a{flex:1;text-align:center;padding:10px 8px;font-size:12px}.summary{padding:16px;display:block}.summary strong{font-size:22px}.table-card{overflow:visible;background:transparent;border:0}.table,.table tbody{display:block}.table thead{display:none}.table tr{display:grid;grid-template-columns:44px 1fr 70px;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:16px;margin-bottom:9px;padding:12px}.table td{padding:0;border:0}.table td:nth-child(4),.table td:nth-child(5),.table td:nth-child(6),.table td:nth-child(7),.table td:nth-child(8),.table td:nth-child(9){display:none}.table td.num{text-align:right}.points{font-size:20px}.player{font-size:14px}.table td:nth-child(1){grid-column:1}.table td:nth-child(2){grid-column:2}.table td:nth-child(3){display:none}.table td:nth-child(4){grid-column:3;display:block}.table td:nth-child(4)::before{content:'PTS ';color:var(--muted);font-size:9px;font-weight:700}}
+  </style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <div class="brand"><img src="https://raw.githubusercontent.com/Dthomas1982/PLTT/main/assets/pltt-crest.png" alt="PLTT"><div><strong>Premier League Top Tipster</strong><span>2026/27</span></div></div>
+    <a class="back" href="?page=home">Dashboard</a>
+  </header>
+  <section class="hero">
+    <div><div class="eyebrow">GAMEWEEK BATTLE</div><h1 id="title">Weekly Leaderboard</h1><p id="subtitle">Loading current Gameweek...</p></div>
+    <nav class="switch"><a class="active" href="?page=weekly">Weekly</a><a href="?page=season">Season</a></nav>
+  </section>
+  <div id="message"></div>
+  <section class="summary"><div><strong id="gameweek">—</strong><span>Gameweek</span></div><div><strong id="completed">—</strong><span>Fixtures completed</span></div><div><strong id="players">—</strong><span>Players submitted</span></div></section>
+  <section class="table-card"><table class="table"><thead><tr><th>Position</th><th>Player</th><th class="num">Played</th><th class="num">Points</th><th class="num">Exact</th><th class="num">Margins</th><th class="num">Results</th><th class="num">Last Week</th><th class="num">Movement</th></tr></thead><tbody id="rows"><tr><td colspan="9" class="empty">Loading leaderboard...</td></tr></tbody></table></section>
+</div>
+<script>
+function esc(value){return String(value==null?'':value).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function render(data){
+  document.getElementById('gameweek').textContent=data.gameweekID||'—';
+  document.getElementById('completed').textContent=(data.fixturesCompleted||0)+' / '+(data.fixturesTotal||0);
+  document.getElementById('players').textContent=(data.rows||[]).length;
+  document.getElementById('subtitle').textContent=data.rows&&data.rows.length?'Live scores from completed fixtures.':'No submitted predictions are available yet.';
+  const rows=data.rows||[], target=document.getElementById('rows');
+  if(!rows.length){target.innerHTML='<tr><td colspan="9" class="empty">No submitted predictions to display yet.</td></tr>';return;}
+  target.innerHTML=rows.map(function(r){var medal=r.position===1?'🥇':r.position===2?'🥈':r.position===3?'🥉':'';return '<tr><td class="pos">'+medal+' '+esc(r.position)+'</td><td class="player">'+esc(r.player)+'</td><td class="num muted">'+esc(r.played)+'</td><td class="num points">'+esc(r.points)+'</td><td class="num">'+esc(r.exact)+'</td><td class="num">'+esc(r.margins)+'</td><td class="num">'+esc(r.results)+'</td><td class="num">'+esc(r.lastWeek)+'</td><td class="num muted">'+esc(r.movement)+'</td></tr>';}).join('');
+}
+function fail(error){document.getElementById('message').innerHTML='<div class="error">Unable to load the leaderboard. '+esc(error&&error.message?error.message:'Please try again.')+'</div>';}
+google.script.run.withSuccessHandler(render).withFailureHandler(fail).getWeeklyLeaderboardPageData('');
+</script>
+</body>
+</html>
