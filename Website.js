@@ -131,13 +131,150 @@ function getCompetitionName() {
 }
 
 /**
- * Returns the authoritative deadline for a Gameweek from the Gameweeks sheet.
- * The Gameweeks sheet is the source of truth for whether predictions can be
- * submitted. No frontend clock or hard-coded date is used for enforcement.
+ * Return the current GameweekID from the Gameweeks sheet when the Website
+ * settings sheet does not explicitly provide one. GameweekID is preserved
+ * exactly as stored (for example GW01, not GW1).
+ */
+function resolveAuthoritativeGameweekID() {
+
+  const configured = String(
+    getWebsiteSettings().currentGameweek || ""
+  ).trim();
+
+  if (configured) {
+    return configured;
+  }
+
+  const sheet = getSheet(SHEETS.GAMEWEEKS);
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+
+  if (lastRow <= 1 || lastColumn <= 0) {
+    return "";
+  }
+
+  const headers = sheet
+    .getRange(1, 1, 1, lastColumn)
+    .getValues()[0];
+
+  const index = buildHeaderIndex(headers);
+
+  if (index.gameweekid === undefined) {
+    return "";
+  }
+
+  const values = sheet
+    .getRange(2, 1, lastRow - 1, lastColumn)
+    .getValues();
+
+  const now = new Date();
+  let bestGameweek = null;
+  let bestStart = null;
+
+  values.forEach(function(row) {
+
+    const rawStart =
+      index.startdate !== undefined
+        ? row[index.startdate]
+        : "";
+
+    let start = null;
+
+    if (
+      Object.prototype.toString.call(rawStart) === '[object Date]' &&
+      !isNaN(rawStart.getTime())
+    ) {
+      start = rawStart;
+    } else if (rawStart !== '' && rawStart != null) {
+      const parsed = new Date(rawStart);
+      if (!isNaN(parsed.getTime())) {
+        start = parsed;
+      }
+    }
+
+    if (!start || start.getTime() > now.getTime()) {
+      return;
+    }
+
+    if (!bestStart || start.getTime() > bestStart.getTime()) {
+      bestStart = start;
+      bestGameweek = String(row[index.gameweekid] || '').trim();
+    }
+  });
+
+  return bestGameweek || "";
+}
+
+/**
+ * Combine the Gameweeks sheet StartDate and Deadline values into one
+ * authoritative local Date. Deadline is commonly stored as a time-only cell,
+ * e.g. 8:00:00 PM, so its clock values are combined with StartDate.
+ */
+function resolveGameweekDeadline(startDateValue, deadlineValue) {
+
+  let startDate = null;
+
+  if (
+    Object.prototype.toString.call(startDateValue) === '[object Date]' &&
+    !isNaN(startDateValue.getTime())
+  ) {
+    startDate = new Date(startDateValue.getTime());
+  } else if (startDateValue !== '' && startDateValue != null) {
+    const parsedStart = new Date(startDateValue);
+    if (!isNaN(parsedStart.getTime())) {
+      startDate = parsedStart;
+    }
+  }
+
+  if (!startDate) {
+    return null;
+  }
+
+  let deadline = null;
+
+  if (
+    Object.prototype.toString.call(deadlineValue) === '[object Date]' &&
+    !isNaN(deadlineValue.getTime())
+  ) {
+    deadline = new Date(deadlineValue.getTime());
+  } else if (deadlineValue !== '' && deadlineValue != null) {
+    const parsedDeadline = new Date(deadlineValue);
+    if (!isNaN(parsedDeadline.getTime())) {
+      deadline = parsedDeadline;
+    }
+  }
+
+  if (!deadline) {
+    return null;
+  }
+
+  // If the deadline cell is time-only, use its clock values with StartDate.
+  // Google Sheets commonly returns time-only cells as a Date anchored to a
+  // base date, so comparing its date portion is not reliable.
+  const result = new Date(startDate.getTime());
+  result.setHours(
+    deadline.getHours(),
+    deadline.getMinutes(),
+    deadline.getSeconds(),
+    0
+  );
+
+  return result;
+}
+
+/**
+ * Returns the authoritative deadline/lock state for a Gameweek from the
+ * Gameweeks sheet. The Gameweek ID and deadline are taken from the sheet
+ * exactly as stored. No frontend clock or hard-coded date is used for
+ * enforcement.
  */
 function getGameweekLockState(gameweekID) {
 
   gameweekID = String(gameweekID || '').trim();
+
+  if (!gameweekID) {
+    gameweekID = resolveAuthoritativeGameweekID();
+  }
 
   if (!gameweekID) {
     return {
@@ -195,20 +332,16 @@ function getGameweekLockState(gameweekID) {
     };
   }
 
-  const deadlineValue = gameweek[index.deadline];
-  let deadline = null;
+  const startDateValue =
+    index.startdate !== undefined
+      ? gameweek[index.startdate]
+      : '';
 
-  if (
-    Object.prototype.toString.call(deadlineValue) === '[object Date]' &&
-    !isNaN(deadlineValue.getTime())
-  ) {
-    deadline = deadlineValue;
-  } else if (deadlineValue !== '' && deadlineValue != null) {
-    const parsed = new Date(deadlineValue);
-    if (!isNaN(parsed.getTime())) {
-      deadline = parsed;
-    }
-  }
+  const deadlineValue = gameweek[index.deadline];
+  const deadline = resolveGameweekDeadline(
+    startDateValue,
+    deadlineValue
+  );
 
   if (!deadline) {
     return {
@@ -224,18 +357,32 @@ function getGameweekLockState(gameweekID) {
 
   const now = new Date();
   const deadlinePassed = now.getTime() >= deadline.getTime();
-  const statusClosed = ['closed', 'locked', 'complete', 'completed', 'finished']
-    .indexOf(status) !== -1;
+  const statusClosed = [
+    'closed',
+    'locked',
+    'complete',
+    'completed',
+    'finished'
+  ].indexOf(status) !== -1;
+
+  const statusNotOpen = [
+    'not open',
+    'not_open',
+    'pending'
+  ].indexOf(status) !== -1;
 
   return {
-    locked: deadlinePassed || statusClosed,
+    locked: deadlinePassed || statusClosed || statusNotOpen,
+    gameweekID: gameweekID,
     deadline: deadline,
     status: status,
     reason: deadlinePassed
       ? 'The Gameweek deadline has passed.'
       : statusClosed
         ? 'The Gameweek is closed.'
-        : ''
+        : statusNotOpen
+          ? 'The Gameweek is not open.'
+          : ''
   };
 }
 
@@ -260,7 +407,7 @@ function testWebsiteSettings() {
 function testGameweekLockState() {
   Logger.log(
     JSON.stringify(
-      getGameweekLockState(getCurrentGameweek()),
+      getGameweekLockState(''),
       null,
       2
     )
