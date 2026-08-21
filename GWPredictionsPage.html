@@ -85,8 +85,7 @@
     const fixtures = Array.isArray(data.fixtures) ? data.fixtures : [];
 
     // Only players with at least one saved selection are shown on the public
-    // board. This prevents registered players who never submitted from
-    // appearing with blank predictions.
+    // board. Registered players with no selections are omitted completely.
     const allPlayers = Array.isArray(data.players) ? data.players : [];
     const players = allPlayers.filter(function(player){
       return (player.predictions || []).some(function(prediction){
@@ -169,6 +168,95 @@
     PLTT.loadGameweekPredictions();
     PLTT.bindDynamicActions();
     requestAnimationFrame(function(){ PLTT.scrollApplicationToTop(); });
+  };
+
+  // The normal Prediction Centre is loaded by JS.html. Override only the
+  // loader/save functions here so the page uses the authoritative Gameweek
+  // returned by PredictionAPI.js and keeps saved scores visible after lock.
+  PLTT.loadPredictionCentre = function(){
+    const content = document.getElementById('appContent');
+    if (!content) return;
+
+    content.innerHTML = '<section class="prediction-centre"><article class="app-card accent"><p class="season">Prediction Centre</p><h2>Loading fixtures...</h2><p>Please wait while the current Gameweek is loaded.</p></article></section>';
+
+    const playerID = PLTT.currentPlayer && PLTT.currentPlayer.playerID
+      ? PLTT.currentPlayer.playerID
+      : '';
+
+    if (!playerID) {
+      PLTT.showPredictionError('Please log in before opening Predictions.');
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function(result){
+        if (!result || result.success !== true || !result.data) {
+          PLTT.showPredictionError(result && result.message ? result.message : 'Unable to load Prediction Centre.');
+          return;
+        }
+
+        PLTT.renderPredictionCentre(result.data);
+
+        if (result.data.locked) {
+          document.querySelectorAll('.prediction-input').forEach(function(input){
+            input.disabled = true;
+          });
+
+          const saveButton = document.getElementById('savePredictionsButton');
+          if (saveButton) {
+            saveButton.disabled = true;
+            saveButton.textContent = 'Predictions Locked';
+          }
+        }
+      })
+      .withFailureHandler(function(error){
+        PLTT.showPredictionError(error && error.message ? error.message : 'Unable to load Prediction Centre.');
+      })
+      .getPredictionCentreData(playerID);
+  };
+
+  PLTT.savePredictions = function(){
+    const button = document.getElementById('savePredictionsButton');
+    if (!button || !PLTT.currentPlayer || button.disabled) return;
+
+    const inputs = Array.from(document.querySelectorAll('.prediction-input'));
+    const predictions = [];
+
+    for (let i = 0; i < inputs.length; i += 2) {
+      const homeInput = inputs[i];
+      const awayInput = inputs[i + 1];
+      if (!homeInput || !awayInput) continue;
+
+      predictions.push({
+        matchID: homeInput.dataset.matchId,
+        homePrediction: homeInput.value,
+        awayPrediction: awayInput.value
+      });
+    }
+
+    button.disabled = true;
+    button.textContent = 'Saving...';
+
+    google.script.run
+      .withSuccessHandler(function(result){
+        button.disabled = false;
+
+        if (!result || result.success !== true) {
+          button.textContent = 'Save Predictions';
+          PLTT.showPredictionMessage(result && result.message ? result.message : 'Unable to save predictions.', 'error');
+          return;
+        }
+
+        button.textContent = 'Saved ✓';
+        PLTT.showPredictionMessage('Predictions saved successfully.', 'success');
+        setTimeout(function(){ PLTT.loadPredictionCentre(); }, 500);
+      })
+      .withFailureHandler(function(error){
+        button.disabled = false;
+        button.textContent = 'Save Predictions';
+        PLTT.showPredictionMessage(error && error.message ? error.message : 'Unable to save predictions.', 'error');
+      })
+      .savePredictionsServer(PLTT.currentPlayer.playerID, predictions);
   };
 
 })(window, document);
