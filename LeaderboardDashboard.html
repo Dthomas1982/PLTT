@@ -1,0 +1,53 @@
+<script>
+(function(window, document){
+  'use strict';
+
+  function applyLeaderboardDashboard(){
+    if (!window.PLTT) return;
+
+    window.PLTT.dashboardMarkup = function(){
+      const player = this.currentPlayer || {};
+      const points = Number(player.seasonPoints || 0);
+      const rank = player.seasonRank || '—';
+      const gameweeks = Number(player.gameweeksPlayed || 0);
+
+      return `<div class="app-content-grid">
+        <article class="app-card accent">
+          <p class="season">GAMEWEEK 1</p>
+          <h2>Make your predictions</h2>
+          <p>Your prediction card will appear here once the fixtures are published.</p>
+          <button class="app-action" type="button" data-action="predictions">OPEN PREDICTIONS</button>
+        </article>
+
+        <article class="app-card">
+          <p class="season">YOUR SEASON</p>
+          <h2>Current standing</h2>
+          <div class="app-stat-row">
+            <div class="app-stat"><strong>${points}</strong><span>Points</span></div>
+            <div class="app-stat"><strong>${rank}</strong><span>Rank</span></div>
+            <div class="app-stat"><strong>${gameweeks}</strong><span>Gameweeks</span></div>
+          </div>
+        </article>
+
+        <article class="app-card">
+          <p class="season">LEADERBOARDS</p>
+          <h2>Track the competition</h2>
+          <p>Choose the leaderboard you want to view.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
+            <button class="btn-primary" type="button" onclick="window.location.href='?page=weekly'">WEEKLY LEADERBOARD</button>
+            <button class="secondary app-card-action" type="button" onclick="window.location.href='?page=season'">SEASON LEADERBOARD</button>
+          </div>
+        </article>
+
+        <article class="app-card">
+          <h2>Fixtures</h2>
+          <p>Check the upcoming Premier League fixtures before locking your picks.</p>
+          <button class="secondary app-card-action" type="button" data-action="fixtures">VIEW FIXTURES</button>
+        </article>
+      </div>`;
+    };
+  }
+
+  applyLeaderboardDashboard();
+})(window, document);
+</script>
