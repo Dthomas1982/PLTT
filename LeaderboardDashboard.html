@@ -4,9 +4,9 @@
 
   const PLTT_WEB_APP = 'https://script.google.com/macros/s/AKfycbzHedUEhJvuCZnZjY1P8hm8gZH_XKF5UytGF4IY8Lz4opRCYYFigOWAFShM77H6yQTe/exec';
 
-  function openLeaderboard(page){
+  window.openPLTTLeaderboard = function(page){
     window.location.href = PLTT_WEB_APP + '?page=' + encodeURIComponent(page);
-  }
+  };
 
   function applyLeaderboardDashboard(){
     if (!window.PLTT) return;
@@ -40,8 +40,8 @@
           <h2>Track the competition</h2>
           <p>Choose the leaderboard you want to view.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
-            <button class="btn-primary" type="button" onclick="openLeaderboard('weekly')">WEEKLY LEADERBOARD</button>
-            <button class="secondary app-card-action" type="button" onclick="openLeaderboard('season')">SEASON LEADERBOARD</button>
+            <button class="btn-primary" type="button" onclick="window.openPLTTLeaderboard('weekly')">WEEKLY LEADERBOARD</button>
+            <button class="secondary app-card-action" type="button" onclick="window.openPLTTLeaderboard('season')">SEASON LEADERBOARD</button>
           </div>
         </article>
 
