@@ -1,167 +1,20 @@
 <style>
-/* Public Gameweek prediction board */
 .gw-predictions{display:flex;flex-direction:column;gap:14px}
 .gw-board-header{display:flex;justify-content:space-between;gap:18px;align-items:center;padding:20px;border:1px solid rgba(165,139,255,.28);border-radius:20px;background:linear-gradient(145deg,rgba(19,16,42,.94),rgba(8,12,20,.96))}
-.gw-board-header h2{margin:4px 0;font-size:1.65rem}
-.gw-board-header p{margin:0;color:var(--muted,#9aa7bd)}
-.gw-board-status{display:flex;flex-direction:column;align-items:flex-end;gap:4px;text-align:right}
-.gw-board-status strong{color:#b9a6ff;font-size:1rem}
-.gw-board-status span{font-size:.68rem;text-transform:uppercase;letter-spacing:.12em;color:#8e9ab0}
-.gw-fixture-board{display:flex;flex-direction:column;gap:10px}
-.gw-fixture-card{border:1px solid var(--line,rgba(255,255,255,.1));border-radius:17px;background:rgba(10,14,22,.9);overflow:hidden}
-.gw-fixture-head{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line,rgba(255,255,255,.08))}
-.gw-fixture-team{display:flex;align-items:center;gap:9px;font-weight:800;min-width:0}
-.gw-fixture-team.home{justify-content:flex-end;text-align:right}
-.gw-fixture-team.away{justify-content:flex-start;text-align:left}
-.gw-fixture-team span{overflow-wrap:anywhere}
-.gw-fixture-badge{width:34px;height:34px;object-fit:contain;border-radius:9px;background:rgba(255,255,255,.95);padding:3px;flex:0 0 auto}
-.gw-fixture-time{text-align:center;color:#9da8bc;font-size:.68rem;white-space:nowrap}
-.gw-player-list{display:flex;flex-direction:column}
-.gw-player-row{display:grid;grid-template-columns:minmax(120px,1fr) 88px 88px;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,.055)}
-.gw-player-row:last-child{border-bottom:0}
-.gw-player-name{font-weight:750;overflow-wrap:anywhere}
-.gw-prediction{text-align:center;font-weight:900;font-size:1rem;letter-spacing:.02em}
-.gw-prediction.empty{font-weight:600;color:#68758b}
-.gw-column-label{font-size:.58rem;text-transform:uppercase;letter-spacing:.12em;color:#7f8ba0;text-align:center}
-.gw-no-submissions{padding:16px;color:#7f8ba0;text-align:center;font-size:.8rem}
-@media(max-width:680px){
-  .gw-board-header{padding:15px;border-radius:17px;align-items:flex-start}
-  .gw-board-header h2{font-size:1.3rem}
-  .gw-board-status strong{font-size:.8rem}
-  .gw-board-status span{font-size:.55rem}
-  .gw-fixture-card{border-radius:14px}
-  .gw-fixture-head{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:7px;padding:11px 10px}
-  .gw-fixture-team{font-size:.68rem;line-height:1.08;gap:5px}
-  .gw-fixture-badge{width:30px;height:30px;border-radius:8px}
-  .gw-fixture-time{font-size:.55rem}
-  .gw-player-row{grid-template-columns:minmax(0,1fr) 58px 58px;gap:5px;padding:9px 10px}
-  .gw-player-name{font-size:.7rem}
-  .gw-prediction{font-size:.85rem}
-  .gw-column-label{font-size:.5rem}
-}
+.gw-board-header h2{margin:4px 0;font-size:1.65rem}.gw-board-header p{margin:0;color:var(--muted,#9aa7bd)}
+.gw-board-status{display:flex;flex-direction:column;align-items:flex-end;gap:4px;text-align:right}.gw-board-status strong{color:#b9a6ff;font-size:1rem}.gw-board-status span{font-size:.68rem;text-transform:uppercase;letter-spacing:.12em;color:#8e9ab0}
+.gw-fixture-board{display:flex;flex-direction:column;gap:10px}.gw-fixture-card{border:1px solid var(--line,rgba(255,255,255,.1));border-radius:17px;background:rgba(10,14,22,.9);overflow:hidden}
+.gw-fixture-head{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line,rgba(255,255,255,.08))}.gw-fixture-team{display:flex;align-items:center;gap:9px;font-weight:800;min-width:0}.gw-fixture-team.home{justify-content:flex-end;text-align:right}.gw-fixture-team.away{justify-content:flex-start;text-align:left}.gw-fixture-team span{overflow-wrap:anywhere}.gw-fixture-badge{width:34px;height:34px;object-fit:contain;border-radius:9px;background:rgba(255,255,255,.95);padding:3px;flex:0 0 auto}.gw-fixture-time{text-align:center;color:#9da8bc;font-size:.68rem;white-space:nowrap}
+.gw-player-list{display:flex;flex-direction:column}.gw-player-row{display:grid;grid-template-columns:minmax(120px,1fr) 88px 88px;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,.055)}.gw-player-row:last-child{border-bottom:0}.gw-player-name{font-weight:750;overflow-wrap:anywhere}.gw-prediction{text-align:center;font-weight:900;font-size:1rem;letter-spacing:.02em}.gw-prediction.empty{font-weight:600;color:#68758b}.gw-column-label{font-size:.58rem;text-transform:uppercase;letter-spacing:.12em;color:#7f8ba0;text-align:center}.gw-no-submissions{padding:16px;color:#7f8ba0;text-align:center;font-size:.8rem}
+.gw-submission-list{display:flex;flex-direction:column;gap:8px;margin-top:14px}.gw-submission-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1px solid rgba(255,255,255,.07);border-radius:12px;background:rgba(10,14,22,.7)}.gw-submission-name{font-weight:750}.gw-submission-status{font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:#7ee2a8;font-weight:800}
+@media(max-width:680px){.gw-board-header{padding:15px;border-radius:17px;align-items:flex-start}.gw-board-header h2{font-size:1.3rem}.gw-board-status strong{font-size:.8rem}.gw-board-status span{font-size:.55rem}.gw-fixture-card{border-radius:14px}.gw-fixture-head{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:7px;padding:11px 10px}.gw-fixture-team{font-size:.68rem;line-height:1.08;gap:5px}.gw-fixture-badge{width:30px;height:30px;border-radius:8px}.gw-fixture-time{font-size:.55rem}.gw-player-row{grid-template-columns:minmax(0,1fr) 58px 58px;gap:5px;padding:9px 10px}.gw-player-name{font-size:.7rem}.gw-prediction{font-size:.85rem}.gw-column-label{font-size:.5rem}}
 </style>
-
 <script>
-(function(window, document){
-  'use strict';
-
-  if (!window.PLTT) return;
-
-  const PLTT = window.PLTT;
-
-  /* Add the page before PLTT.init() binds the application navigation. */
-  const nav = document.querySelector('.app-nav');
-  if (nav && !nav.querySelector('[data-view="gameweekPredictions"]')) {
-    const button = document.createElement('button');
-    button.className = 'app-nav-item';
-    button.type = 'button';
-    button.dataset.view = 'gameweekPredictions';
-    button.textContent = 'GW Predictions';
-    nav.insertBefore(button, nav.querySelector('[data-view="leaderboard"]'));
-  }
-
-  PLTT.loadGameweekPredictions = function(){
-    const content = document.getElementById('appContent');
-    if (!content) return;
-
-    content.innerHTML = '<section class="gw-predictions"><article class="app-card accent"><p class="season">GAMEWEEK PREDICTIONS</p><h2>Loading predictions...</h2><p>Checking the current Gameweek status.</p></article></section>';
-
-    google.script.run
-      .withSuccessHandler(function(result){
-        if (!result || result.success !== true || !result.data) {
-          content.innerHTML = '<section class="gw-predictions"><article class="app-card"><p class="season">GAMEWEEK PREDICTIONS</p><h2>Predictions not visible yet</h2><p>' + PLTT.escapeHtml(result && result.message ? result.message : 'Player predictions will appear once the Gameweek is locked and in play.') + '</p></article></section>';
-          return;
-        }
-        PLTT.renderGameweekPredictions(result.data);
-      })
-      .withFailureHandler(function(error){
-        content.innerHTML = '<section class="gw-predictions"><article class="app-card"><p class="season">GAMEWEEK PREDICTIONS</p><h2>Unable to load</h2><p>' + PLTT.escapeHtml(error && error.message ? error.message : 'Unable to load Gameweek predictions.') + '</p></article></section>';
-      })
-      .getGameweekPredictionBoard();
-  };
-
-  PLTT.renderGameweekPredictions = function(data){
-    const content = document.getElementById('appContent');
-    if (!content) return;
-
-    const fixtures = Array.isArray(data.fixtures) ? data.fixtures : [];
-    const players = Array.isArray(data.players) ? data.players : [];
-    const predictionLookup = {};
-
-    players.forEach(function(player){
-      predictionLookup[player.playerID] = {};
-      (player.predictions || []).forEach(function(prediction){
-        predictionLookup[player.playerID][String(prediction.matchID)] = prediction;
-      });
-    });
-
-    const badge = function(team){
-      if (!team || !team.badgeURL) return '';
-      return '<img class="gw-fixture-badge" src="' + PLTT.escapeAttribute(team.badgeURL) + '" alt="" loading="lazy">';
-    };
-
-    const playerRows = function(fixture){
-      if (!players.length) return '<div class="gw-no-submissions">No players registered.</div>';
-
-      return players.map(function(player){
-        const prediction = predictionLookup[player.playerID] && predictionLookup[player.playerID][String(fixture.matchID)]
-          ? predictionLookup[player.playerID][String(fixture.matchID)]
-          : {homePrediction:'',awayPrediction:''};
-        const hasPrediction = prediction.homePrediction !== '' || prediction.awayPrediction !== '';
-        return '<div class="gw-player-row">' +
-          '<div class="gw-player-name">' + PLTT.escapeHtml(player.displayName) + '</div>' +
-          '<div class="gw-prediction ' + (hasPrediction ? '' : 'empty') + '">' + (hasPrediction ? PLTT.escapeHtml(prediction.homePrediction + ' - ' + prediction.awayPrediction) : '—') + '</div>' +
-          '<div class="gw-prediction ' + (hasPrediction ? '' : 'empty') + '">' + (hasPrediction ? 'Submitted' : 'No pick') + '</div>' +
-        '</div>';
-      }).join('');
-    };
-
-    const cards = fixtures.map(function(fixture){
-      const home = fixture.homeTeam || {}, away = fixture.awayTeam || {};
-      return '<article class="gw-fixture-card">' +
-        '<div class="gw-fixture-head">' +
-          '<div class="gw-fixture-team home"><span>' + PLTT.escapeHtml(home.clubName || 'Home') + '</span>' + badge(home) + '</div>' +
-          '<div class="gw-fixture-time"><strong>' + PLTT.escapeHtml(fixture.date || '') + '</strong><br>' + PLTT.escapeHtml(fixture.kickoff || '') + '</div>' +
-          '<div class="gw-fixture-team away">' + badge(away) + '<span>' + PLTT.escapeHtml(away.clubName || 'Away') + '</span></div>' +
-        '</div>' +
-        '<div class="gw-player-row">' +
-          '<div class="gw-column-label" style="text-align:left">Player</div>' +
-          '<div class="gw-column-label">Prediction</div>' +
-          '<div class="gw-column-label">Status</div>' +
-        '</div>' +
-        '<div class="gw-player-list">' + playerRows(fixture) + '</div>' +
-      '</article>';
-    }).join('');
-
-    content.innerHTML = '<section class="gw-predictions">' +
-      '<div class="gw-board-header">' +
-        '<div><p class="season">GAMEWEEK ' + PLTT.escapeHtml(data.gameweekID || '') + '</p><h2>All Player Predictions</h2><p>Predictions are now visible because the Gameweek is locked and in play.</p></div>' +
-        '<div class="gw-board-status"><strong>' + PLTT.escapeHtml(String(data.submissionCount || 0)) + ' submitted</strong><span>Players</span></div>' +
-      '</div>' +
-      '<div class="gw-fixture-board">' + cards + '</div>' +
-    '</section>';
-  };
-
-  const originalShowAppView = PLTT.showAppView.bind(PLTT);
-  PLTT.showAppView = function(view){
-    if (view !== 'gameweekPredictions') {
-      return originalShowAppView(view);
-    }
-
-    const title = document.getElementById('appPageTitle');
-    const content = document.getElementById('appContent');
-    if (!title || !content) return;
-
-    document.querySelectorAll('.app-nav-item').forEach(function(button){
-      button.classList.toggle('active', button.dataset.view === view);
-    });
-
-    title.textContent = 'GW Predictions';
-    content.innerHTML = '<section class="gw-predictions"><article class="app-card accent"><p class="season">GAMEWEEK PREDICTIONS</p><h2>Loading predictions...</h2><p>Please wait.</p></article></section>';
-    PLTT.loadGameweekPredictions();
-    PLTT.bindDynamicActions();
-    requestAnimationFrame(function(){ PLTT.scrollApplicationToTop(); });
-  };
-
-})(window, document);
+(function(window,document){'use strict';if(!window.PLTT)return;const PLTT=window.PLTT;
+const nav=document.querySelector('.app-nav');if(nav&&!nav.querySelector('[data-view="gameweekPredictions"]')){const b=document.createElement('button');b.className='app-nav-item';b.type='button';b.dataset.view='gameweekPredictions';b.textContent='GW Predictions';nav.insertBefore(b,nav.querySelector('[data-view="leaderboard"]'));}
+PLTT.loadGameweekPredictions=function(){const c=document.getElementById('appContent');if(!c)return;c.innerHTML='<section class="gw-predictions"><article class="app-card accent"><p class="season">GAMEWEEK PREDICTIONS</p><h2>Loading...</h2><p>Checking submissions.</p></article></section>';google.script.run.withSuccessHandler(function(r){if(!r||r.success!==true||!r.data){c.innerHTML='<section class="gw-predictions"><article class="app-card"><p class="season">GAMEWEEK PREDICTIONS</p><h2>Not available</h2><p>'+PLTT.escapeHtml(r&&r.message?r.message:'No Gameweek is currently available.')+'</p></article></section>';return;}PLTT.renderGameweekPredictions(r.data);}).withFailureHandler(function(e){c.innerHTML='<section class="gw-predictions"><article class="app-card"><p class="season">GAMEWEEK PREDICTIONS</p><h2>Unable to load</h2><p>'+PLTT.escapeHtml(e&&e.message?e.message:'Unable to load Gameweek predictions.')+'</p></article></section>';}).getGameweekPredictionBoard();};
+PLTT.renderGameweekPredictions=function(data){const c=document.getElementById('appContent');if(!c)return;const players=Array.isArray(data.players)?data.players:[];const fixtures=Array.isArray(data.fixtures)?data.fixtures:[];
+if(data.submissionOnly){c.innerHTML='<section class="gw-predictions"><div class="gw-board-header"><div><p class="season">GAMEWEEK '+PLTT.escapeHtml(data.gameweekID||'')+'</p><h2>Player Submissions</h2><p>Players who have submitted are shown below. Their predictions remain hidden until the deadline.</p></div><div class="gw-board-status"><strong>'+PLTT.escapeHtml(String(data.submissionCount||0))+' submitted</strong><span>Players</span></div></div><div class="gw-submission-list">'+(players.length?players.map(function(p){return '<div class="gw-submission-row"><span class="gw-submission-name">'+PLTT.escapeHtml(p.displayName)+'</span><span class="gw-submission-status">✓ Submitted</span></div>';}).join(''):'<div class="gw-no-submissions">No submissions yet.</div>')+'</div></section>';return;}
+const lookup={};players.forEach(function(p){lookup[p.playerID]={};(p.predictions||[]).forEach(function(x){lookup[p.playerID][String(x.matchID)]=x;});});const badge=function(t){return t&&t.badgeURL?'<img class="gw-fixture-badge" src="'+PLTT.escapeAttribute(t.badgeURL)+'" alt="" loading="lazy">':'';};const rows=function(f){return players.map(function(p){const x=lookup[p.playerID]&&lookup[p.playerID][String(f.matchID)]?lookup[p.playerID][String(f.matchID)]:{homePrediction:'',awayPrediction:''};const has=x.homePrediction!==''||x.awayPrediction!=='';return '<div class="gw-player-row"><div class="gw-player-name">'+PLTT.escapeHtml(p.displayName)+'</div><div class="gw-prediction '+(has?'':'empty')+'">'+(has?PLTT.escapeHtml(x.homePrediction+' - '+x.awayPrediction):'—')+'</div><div class="gw-prediction '+(has?'':'empty')+'">'+(has?'Submitted':'No pick')+'</div></div>';}).join('');};const cards=fixtures.map(function(f){const h=f.homeTeam||{},a=f.awayTeam||{};return '<article class="gw-fixture-card"><div class="gw-fixture-head"><div class="gw-fixture-team home"><span>'+PLTT.escapeHtml(h.clubName||'Home')+'</span>'+badge(h)+'</div><div class="gw-fixture-time"><strong>'+PLTT.escapeHtml(f.date||'')+'</strong><br>'+PLTT.escapeHtml(f.kickoff||'')+'</div><div class="gw-fixture-team away">'+badge(a)+'<span>'+PLTT.escapeHtml(a.clubName||'Away')+'</span></div></div><div class="gw-player-row"><div class="gw-column-label" style="text-align:left">Player</div><div class="gw-column-label">Prediction</div><div class="gw-column-label">Status</div></div><div class="gw-player-list">'+rows(f)+'</div></article>';}).join('');c.innerHTML='<section class="gw-predictions"><div class="gw-board-header"><div><p class="season">GAMEWEEK '+PLTT.escapeHtml(data.gameweekID||'')+'</p><h2>All Player Predictions</h2><p>Predictions are now visible because the deadline has passed.</p></div><div class="gw-board-status"><strong>'+PLTT.escapeHtml(String(data.submissionCount||0))+' submitted</strong><span>Players</span></div></div><div class="gw-fixture-board">'+cards+'</div></section>';};
+const originalShowAppView=PLTT.showAppView.bind(PLTT);PLTT.showAppView=function(view){if(view!=='gameweekPredictions')return originalShowAppView(view);const t=document.getElementById('appPageTitle'),c=document.getElementById('appContent');if(!t||!c)return;document.querySelectorAll('.app-nav-item').forEach(function(b){b.classList.toggle('active',b.dataset.view===view);});t.textContent='GW Predictions';c.innerHTML='<section class="gw-predictions"><article class="app-card accent"><p class="season">GAMEWEEK PREDICTIONS</p><h2>Loading...</h2><p>Please wait.</p></article></section>';PLTT.loadGameweekPredictions();PLTT.bindDynamicActions();requestAnimationFrame(function(){PLTT.scrollApplicationToTop();});};})(window,document);
 </script>
