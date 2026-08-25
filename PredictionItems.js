@@ -1,13 +1,14 @@
 /**********************************************************************
  * PLTT Platform
  * PredictionItems.js
- * Version: 0.5.4
+ * Version: 0.5.5
  *
  * Release:
  * - Prediction Save Engine
  * - Prediction Item Data Layer
  * - Google Sheets Persistence
  * - Authoritative Gameweek deadline lock
+ * - Mark prediction set as submitted on successful save
  *
  * Status:
  * Production
@@ -107,6 +108,34 @@ function getOrCreatePredictionSet(playerID, gameweekID) {
   }
 
   return predictionSet;
+}
+
+function markPredictionSetSubmitted(predictionSetID) {
+
+  predictionSetID = String(predictionSetID || "").trim();
+
+  if (!predictionSetID) {
+    throw new Error("Prediction Set ID is required.");
+  }
+
+  const sheet = getSheet(SHEETS.PREDICTIONSETS);
+  const lastRow = sheet.getLastRow();
+
+  if (lastRow <= 1) {
+    throw new Error("Prediction Set was not found.");
+  }
+
+  const values = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
+
+  for (let i = 0; i < values.length; i++) {
+    if (String(values[i][0]).trim() !== predictionSetID) continue;
+
+    // Column E = Submitted.
+    sheet.getRange(i + 2, 5).setValue(true);
+    return true;
+  }
+
+  throw new Error("Prediction Set " + predictionSetID + " was not found.");
 }
 
 function getPredictionItems(predictionSetID) {
@@ -293,6 +322,11 @@ function savePredictionSet(playerID, gameweekID, predictions) {
     predictionSet.predictionSetID,
     predictions
   );
+
+  // A successful save is the submission event. This is deliberately done
+  // after the prediction items have been written so the board can safely
+  // use PredictionSets.Submitted as the source of truth.
+  markPredictionSetSubmitted(predictionSet.predictionSetID);
 
   logAction(
     FEATURES.PREDICTION,
