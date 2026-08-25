@@ -1,0 +1,59 @@
+<script>
+(function(window, document){
+  'use strict';
+  if (!window.PLTT) return;
+
+  const PLTT = window.PLTT;
+
+  PLTT.loadGameweekPredictions = function(){
+    const content = document.getElementById('appContent');
+    if (!content) return;
+
+    content.innerHTML = '<section class="gw-predictions"><article class="app-card accent"><p class="season">GAMEWEEK PREDICTIONS</p><h2>Loading...</h2><p>Checking submissions.</p></article></section>';
+
+    google.script.run
+      .withSuccessHandler(function(result){
+        if (!result || result.success !== true || !result.data) {
+          content.innerHTML = '<section class="gw-predictions"><article class="app-card"><p class="season">GAMEWEEK PREDICTIONS</p><h2>Not available</h2><p>' + PLTT.escapeHtml(result && result.message ? result.message : 'Unable to load Gameweek status.') + '</p></article></section>';
+          return;
+        }
+
+        const data = result.data;
+
+        if (data.predictionsVisible === true) {
+          PLTT.renderGameweekPredictions(data);
+          return;
+        }
+
+        const players = Array.isArray(data.submittedPlayers) ? data.submittedPlayers : [];
+        const names = players.length
+          ? players.map(function(player){
+              return '<div class="gw-submitted-player"><span>' + PLTT.escapeHtml(player.displayName) + '</span><strong>Submitted ✓</strong></div>';
+            }).join('')
+          : '<div class="gw-no-submissions">No submissions yet.</div>';
+
+        content.innerHTML = '<section class="gw-predictions">' +
+          '<div class="gw-board-header">' +
+            '<div><p class="season">GAMEWEEK ' + PLTT.escapeHtml(data.gameweekID || '') + '</p><h2>Predictions Submitted</h2><p>Players who have submitted are shown below. Their selections remain hidden until the deadline.</p></div>' +
+            '<div class="gw-board-status"><strong>' + PLTT.escapeHtml(String(data.submissionCount || 0)) + ' submitted</strong><span>Players</span></div>' +
+          '</div>' +
+          '<article class="gw-fixture-card"><div class="gw-submitted-list">' + names + '</div></article>' +
+        '</section>';
+      })
+      .withFailureHandler(function(error){
+        content.innerHTML = '<section class="gw-predictions"><article class="app-card"><p class="season">GAMEWEEK PREDICTIONS</p><h2>Unable to load</h2><p>' + PLTT.escapeHtml(error && error.message ? error.message : 'Unable to load Gameweek submissions.') + '</p></article></section>';
+      })
+      .getGameweekSubmissionStatus();
+  };
+
+})(window, document);
+</script>
+
+<style>
+.gw-submitted-list{display:flex;flex-direction:column}
+.gw-submitted-player{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;border-bottom:1px solid rgba(255,255,255,.055)}
+.gw-submitted-player:last-child{border-bottom:0}
+.gw-submitted-player span{font-weight:750}
+.gw-submitted-player strong{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:#8fe3b0;white-space:nowrap}
+@media(max-width:680px){.gw-submitted-player{padding:11px 10px;font-size:.78rem}.gw-submitted-player strong{font-size:.58rem}}
+</style>
