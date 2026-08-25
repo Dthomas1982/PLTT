@@ -1,12 +1,13 @@
 /**********************************************************************
  * PLTT Platform
  * PredictionAPI.js
- * Version: 0.5.3
+ * Version: 0.6.1
  *
  * Release:
  * - Prediction API
  * - Browser / Server Bridge
  * - Prediction Centre Services
+ * - Automatic payment record creation on successful submission
  *
  * Status:
  * Production
@@ -22,9 +23,6 @@ function getPredictionCentreData(playerID) {
       return errorResponse("Website settings not found.");
     }
 
-    // Keep the Prediction Centre on the authoritative Gameweek from the
-    // Gameweeks sheet. This prevents the player's saved predictions from
-    // disappearing simply because the Gameweek deadline has passed.
     const gameweekID =
       resolveAuthoritativeGameweekID() ||
       settings.currentGameweek;
@@ -149,6 +147,44 @@ function savePredictionsServer(playerID, predictions) {
     );
 
     if (result.success) {
+
+      const predictionSetID =
+        result.data && result.data.predictionSetID
+          ? result.data.predictionSetID
+          : "";
+
+      if (!predictionSetID) {
+        return errorResponse(
+          "Predictions were saved, but the Prediction Set ID could not be confirmed."
+        );
+      }
+
+      // Create the £10 payment record once for this Player/Gameweek.
+      // The payment function is duplicate-safe, so saving/editing the
+      // predictions again before the deadline will not create another charge.
+      try {
+
+        createPaymentRecordForSubmission(
+          playerID,
+          gameweekID,
+          predictionSetID
+        );
+
+      } catch (paymentError) {
+
+        logAction(
+          FEATURES.PAYMENT,
+          "CREATE_ERROR",
+          playerID,
+          paymentError.message
+        );
+
+        return errorResponse(
+          "Predictions were saved, but the payment record could not be created: " +
+          paymentError.message
+        );
+      }
+
       logAction(
         FEATURES.PREDICTION,
         "SAVE",
