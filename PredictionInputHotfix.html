@@ -1,0 +1,82 @@
+<style>
+/* PLTT PREDICTION INPUT HOTFIX */
+.prediction-input{
+  pointer-events:auto!important;
+  user-select:text!important;
+  -webkit-user-select:text!important;
+  position:relative!important;
+  z-index:5!important;
+}
+.prediction-input:disabled{
+  cursor:not-allowed!important;
+  opacity:.55!important;
+}
+</style>
+<script>
+(function(window, document){
+  'use strict';
+
+  function applyPredictionInputState(){
+    const inputs = Array.from(document.querySelectorAll('.prediction-input'));
+    if (!inputs.length) return;
+
+    const player = window.PLTT && window.PLTT.currentPlayer;
+    const playerID = player && player.playerID ? player.playerID : '';
+    if (!playerID || !window.google || !google.script || !google.script.run) return;
+
+    google.script.run.withSuccessHandler(function(result){
+      const locked = !result || result.success !== true || !result.data || result.data.locked === true;
+
+      inputs.forEach(function(input){
+        input.disabled = locked;
+        input.readOnly = locked;
+        input.style.pointerEvents = locked ? 'none' : 'auto';
+        input.style.userSelect = locked ? 'none' : 'text';
+        input.setAttribute('aria-disabled', locked ? 'true' : 'false');
+      });
+
+      const saveButton = document.getElementById('savePredictionsButton');
+      if (saveButton) saveButton.disabled = locked;
+    }).withFailureHandler(function(){
+      // Do not disable an otherwise usable Prediction Centre because a
+      // secondary UI-state check failed. The server remains authoritative.
+      inputs.forEach(function(input){
+        input.disabled = false;
+        input.readOnly = false;
+        input.style.pointerEvents = 'auto';
+        input.style.userSelect = 'text';
+      });
+    }).getPredictionCentreData(playerID);
+  }
+
+  function observePredictionCentre(){
+    const target = document.getElementById('appContent') || document.body;
+    if (!target || target.dataset.predictionHotfixBound === '1') return;
+    target.dataset.predictionHotfixBound = '1';
+
+    const observer = new MutationObserver(function(){
+      if (document.querySelector('.prediction-input')) {
+        window.setTimeout(applyPredictionInputState, 50);
+      }
+    });
+    observer.observe(target, {childList:true, subtree:true});
+
+    document.addEventListener('click', function(event){
+      if (event.target && event.target.closest && event.target.closest('.prediction-input')) {
+        window.setTimeout(function(){
+          const input = event.target.closest('.prediction-input');
+          if (input && !input.disabled && !input.readOnly) input.focus();
+        }, 0);
+      }
+    }, true);
+
+    window.setTimeout(applyPredictionInputState, 100);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', observePredictionCentre);
+  } else {
+    observePredictionCentre();
+  }
+})(window, document);
+</script>
