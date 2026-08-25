@@ -97,15 +97,61 @@ function getGameweekFixturesByID(gameweekID) {
   });
 }
 
+/**
+ * Return PredictionSet IDs that contain saved prediction items for the
+ * supplied Gameweek. This is used as a backwards-compatible submission
+ * signal for records created before Submitted was marked automatically.
+ * It never returns the prediction values themselves.
+ */
+function getSavedPredictionSetIDsForGameweek(gameweekID) {
+  const result = {};
+  const setSheet = getSheet(SHEETS.PREDICTIONSETS);
+  const setLastRow = setSheet.getLastRow();
+
+  if (setLastRow <= 1) return result;
+
+  const setValues = setSheet.getRange(2, 1, setLastRow - 1, 6).getValues();
+  const validSets = {};
+
+  setValues.forEach(function(row) {
+    const predictionSetID = String(row[0] || '').trim();
+    const playerID = String(row[1] || '').trim();
+    const gwID = String(row[2] || '').trim();
+    const current = Boolean(row[5]);
+
+    if (predictionSetID && playerID && gwID === gameweekID && current) {
+      validSets[predictionSetID] = playerID;
+    }
+  });
+
+  if (!Object.keys(validSets).length) return result;
+
+  const itemSheet = getSheet(SHEETS.PREDICTIONITEMS);
+  const itemLastRow = itemSheet.getLastRow();
+  if (itemLastRow <= 1) return result;
+
+  const itemValues = itemSheet.getRange(2, 1, itemLastRow - 1, 4).getValues();
+
+  itemValues.forEach(function(row) {
+    const predictionSetID = String(row[0] || '').trim();
+    if (!validSets[predictionSetID]) return;
+
+    // A row belonging to the current Gameweek prediction set is enough to
+    // establish that selections were saved. Values are never returned here.
+    result[predictionSetID] = validSets[predictionSetID];
+  });
+
+  return result;
+}
+
 function getGameweekPredictionBoard() {
   try {
     const gameweek = getAuthoritativePublicGameweek();
     if (!gameweek) return errorResponse('No Gameweek is currently in play.');
 
     const lockState = getGameweekLockState(gameweek.gameweekID);
-    const now = new Date();
-    const started = gameweek.startDate && gameweek.startDate.getTime() <= now.getTime();
-    const deadlinePassed = lockState.deadline && lockState.deadline.getTime() <= now.getTime();
+    const started = gameweek.startDate && gameweek.startDate.getTime() <= new Date().getTime();
+    const deadlinePassed = lockState.deadline && lockState.deadline.getTime() <= new Date().getTime();
 
     if (!started) return errorResponse('This Gameweek has not started yet.');
 
@@ -134,6 +180,7 @@ function getGameweekPredictionBoard() {
     const setLastRow = setSheet.getLastRow();
     const setLastColumn = setSheet.getLastColumn();
     const submittedPlayers = {};
+    const savedSetIDs = getSavedPredictionSetIDsForGameweek(gameweek.gameweekID);
 
     if (setLastRow > 1 && setLastColumn > 0) {
       const headers = setSheet.getRange(1, 1, 1, setLastColumn).getValues()[0];
@@ -144,10 +191,15 @@ function getGameweekPredictionBoard() {
         const playerID = String(index.playerid !== undefined ? row[index.playerid] : '').trim();
         const gwID = String(index.gameweekid !== undefined ? row[index.gameweekid] : '').trim();
         const current = index.current === undefined ? true : Boolean(row[index.current]);
-        const submitted = index.submitted === undefined ? true : Boolean(row[index.submitted]);
+        const submitted = index.submitted === undefined ? false : Boolean(row[index.submitted]);
         const predictionSetID = String(index.predictionsetid !== undefined ? row[index.predictionsetid] : '').trim();
 
-        if (playerID && gwID === gameweek.gameweekID && current && submitted && predictionSetID && playerLookup[playerID]) {
+        if (!playerID || gwID !== gameweek.gameweekID || !current || !predictionSetID || !playerLookup[playerID]) return;
+
+        // Submitted is the preferred flag. The saved-item fallback keeps
+        // existing valid submissions visible even if they were created before
+        // the automatic Submitted flag was introduced.
+        if (submitted || savedSetIDs[predictionSetID]) {
           submittedPlayers[playerID] = predictionSetID;
         }
       });
@@ -159,8 +211,8 @@ function getGameweekPredictionBoard() {
       return {playerID: player.playerID, displayName: player.displayName};
     });
 
-    // Before the deadline, expose submission status only. PredictionItems are
-    // deliberately not read until the authoritative deadline has passed.
+    // Before the deadline, expose submission status only. No prediction
+    // values are returned to the browser.
     if (!deadlinePassed || !lockState.locked) {
       return successResponse('Gameweek Submission Status Loaded', {
         gameweekID: gameweek.gameweekID,
