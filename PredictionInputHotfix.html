@@ -16,37 +16,28 @@
 (function(window, document){
   'use strict';
 
-  function applyPredictionInputState(){
+  /*
+   * UI-only hotfix.
+   *
+   * Do NOT determine lock state here. The prediction page and the
+   * server-side save function are authoritative. A secondary async lock
+   * check here can incorrectly disable an otherwise open Gameweek.
+   */
+  function enablePredictionInputs(){
     const inputs = Array.from(document.querySelectorAll('.prediction-input'));
     if (!inputs.length) return;
 
-    const player = window.PLTT && window.PLTT.currentPlayer;
-    const playerID = player && player.playerID ? player.playerID : '';
-    if (!playerID || !window.google || !google.script || !google.script.run) return;
+    inputs.forEach(function(input){
+      input.disabled = false;
+      input.readOnly = false;
+      input.style.pointerEvents = 'auto';
+      input.style.userSelect = 'text';
+      input.style.webkitUserSelect = 'text';
+      input.setAttribute('aria-disabled', 'false');
+    });
 
-    google.script.run.withSuccessHandler(function(result){
-      const locked = !result || result.success !== true || !result.data || result.data.locked === true;
-
-      inputs.forEach(function(input){
-        input.disabled = locked;
-        input.readOnly = locked;
-        input.style.pointerEvents = locked ? 'none' : 'auto';
-        input.style.userSelect = locked ? 'none' : 'text';
-        input.setAttribute('aria-disabled', locked ? 'true' : 'false');
-      });
-
-      const saveButton = document.getElementById('savePredictionsButton');
-      if (saveButton) saveButton.disabled = locked;
-    }).withFailureHandler(function(){
-      // Do not disable an otherwise usable Prediction Centre because a
-      // secondary UI-state check failed. The server remains authoritative.
-      inputs.forEach(function(input){
-        input.disabled = false;
-        input.readOnly = false;
-        input.style.pointerEvents = 'auto';
-        input.style.userSelect = 'text';
-      });
-    }).getPredictionCentreData(playerID);
+    const saveButton = document.getElementById('savePredictionsButton');
+    if (saveButton) saveButton.disabled = false;
   }
 
   function observePredictionCentre(){
@@ -56,21 +47,12 @@
 
     const observer = new MutationObserver(function(){
       if (document.querySelector('.prediction-input')) {
-        window.setTimeout(applyPredictionInputState, 50);
+        window.setTimeout(enablePredictionInputs, 0);
       }
     });
     observer.observe(target, {childList:true, subtree:true});
 
-    document.addEventListener('click', function(event){
-      if (event.target && event.target.closest && event.target.closest('.prediction-input')) {
-        window.setTimeout(function(){
-          const input = event.target.closest('.prediction-input');
-          if (input && !input.disabled && !input.readOnly) input.focus();
-        }, 0);
-      }
-    }, true);
-
-    window.setTimeout(applyPredictionInputState, 100);
+    window.setTimeout(enablePredictionInputs, 100);
   }
 
   if (document.readyState === 'loading') {
