@@ -1,10 +1,12 @@
 /**********************************************************************
  * PLTT Platform
  * Leaderboard.js
- * Version: 0.7.0
+ * Version: 0.7.1
  *
  * Weekly scoring engine + public weekly/season leaderboard data.
  * Scoring: Exact 10 | Margin 5 | Result 2.
+ * Display counts are mutually exclusive: an exact is only Exact,
+ * a correct margin is only Margin, and a result-only prediction is Result.
  **********************************************************************/
 
 const LEADERBOARD_POINTS = {
@@ -315,14 +317,15 @@ function scorePredictionSet_(items, fixtureMap) {
     }
 
     if (getResultSign_(predictedHome, predictedAway) === getResultSign_(actualHome, actualAway)) {
-      score.results += 1;
       const predictedMargin = Math.abs(predictedHome - predictedAway);
       const actualMargin = Math.abs(actualHome - actualAway);
+
       if (predictedMargin === actualMargin) {
         score.points += LEADERBOARD_POINTS.MARGIN;
         score.margins += 1;
       } else {
         score.points += LEADERBOARD_POINTS.RESULT;
+        score.results += 1;
       }
     }
   });
