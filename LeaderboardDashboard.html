@@ -31,7 +31,7 @@
           <div class="app-stat-row">
             <div class="app-stat"><strong>${points}</strong><span>Points</span></div>
             <div class="app-stat"><strong>${rank}</strong><span>Rank</span></div>
-            <div class="app-stat"><strong>${gameweeks}</strong><span>Gameweeks</span></div>
+            <div class="app-stat"><strong id="dashboardWeeksPlayed">${gameweeks}</strong><span>Weeks played</span></div>
           </div>
         </article>
 
@@ -46,12 +46,63 @@
         </article>
 
         <article class="app-card">
-          <h2>Fixtures</h2>
-          <p>Check the upcoming Premier League fixtures before locking your picks.</p>
-          <button class="secondary app-card-action" type="button" data-action="fixtures">VIEW FIXTURES</button>
+          <p class="season">PRIZE POTS</p>
+          <h2>Money on the line</h2>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px;">
+            <div class="app-stat" style="padding:16px;">
+              <strong id="dashboardWeeklyPot">£0.00</strong>
+              <span id="dashboardWeeklyPotLabel">Current GW winner</span>
+            </div>
+            <div class="app-stat" style="padding:16px;">
+              <strong id="dashboardSeasonPot">£0.00</strong>
+              <span>Season pot</span>
+            </div>
+          </div>
+          <p id="dashboardPotSubtext" style="margin:14px 0 0;">Based on 0 submissions.</p>
         </article>
       </div>`;
     };
+
+    const originalShowAppView = window.PLTT.showAppView;
+    window.PLTT.showAppView = function(view){
+      originalShowAppView.call(this, view);
+      if (view === 'dashboard') loadDashboardMoneyData(this);
+    };
+  }
+
+  function loadDashboardMoneyData(pltt){
+    const playerID = pltt.currentPlayer && pltt.currentPlayer.playerID
+      ? pltt.currentPlayer.playerID
+      : '';
+
+    if (!playerID || typeof google === 'undefined' || !google.script || !google.script.run) return;
+
+    google.script.run
+      .withSuccessHandler(function(result){
+        if (!result || result.success !== true || !result.data) return;
+
+        const data = result.data;
+        const weeklyPot = document.getElementById('dashboardWeeklyPot');
+        const seasonPot = document.getElementById('dashboardSeasonPot');
+        const weeksPlayed = document.getElementById('dashboardWeeksPlayed');
+        const subtext = document.getElementById('dashboardPotSubtext');
+        const label = document.getElementById('dashboardWeeklyPotLabel');
+
+        if (weeklyPot) weeklyPot.textContent = money(data.weeklyWinnerPot);
+        if (seasonPot) seasonPot.textContent = money(data.seasonPot);
+        if (weeksPlayed) weeksPlayed.textContent = String(data.weeksPlayed || 0);
+        if (label) label.textContent = (data.currentGameweek || 'Current GW') + ' winner';
+        if (subtext) subtext.textContent = 'Based on ' + String(data.submissionCount || 0) + ' submission' + (Number(data.submissionCount || 0) === 1 ? '' : 's') + '.';
+      })
+      .withFailureHandler(function(){
+        const subtext = document.getElementById('dashboardPotSubtext');
+        if (subtext) subtext.textContent = 'Prize pot data unavailable.';
+      })
+      .getDashboardMoneyData(playerID);
+  }
+
+  function money(value){
+    return '£' + Number(value || 0).toFixed(2);
   }
 
   applyLeaderboardDashboard();
