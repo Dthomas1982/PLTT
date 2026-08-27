@@ -92,8 +92,11 @@
         if (weeklyPot) weeklyPot.textContent = money(data.weeklyWinnerPot);
         if (seasonPot) seasonPot.textContent = money(data.seasonPot);
         if (weeksPlayed) weeksPlayed.textContent = String(data.weeksPlayed || 0);
-        if (label) label.textContent = (data.currentGameweek || 'Current GW') + ' winner';
-        if (gameweekLabel) gameweekLabel.textContent = 'GAMEWEEK ' + String(data.currentGameweek || '—').replace(/^GW/i, '');
+
+        const currentGameweek = String(data.currentGameweek || '').trim();
+        if (label) label.textContent = currentGameweek ? currentGameweek + ' winner' : 'Current GW winner';
+        if (gameweekLabel) gameweekLabel.textContent = currentGameweek ? 'GAMEWEEK ' + currentGameweek.replace(/^GW/i, '') : 'GAMEWEEK —';
+
         if (subtext) subtext.textContent = 'Based on ' + String(data.submissionCount || 0) + ' submission' + (Number(data.submissionCount || 0) === 1 ? '' : 's') + '.';
       })
       .withFailureHandler(function(){
