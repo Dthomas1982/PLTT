@@ -19,7 +19,7 @@
 
       return `<div class="app-content-grid">
         <article class="app-card accent">
-          <p class="season">GAMEWEEK 1</p>
+          <p class="season" id="dashboardGameweekLabel">GAMEWEEK —</p>
           <h2>Make your predictions</h2>
           <p>Your prediction card will appear here once the fixtures are published.</p>
           <button class="app-action" type="button" data-action="predictions">OPEN PREDICTIONS</button>
@@ -87,11 +87,13 @@
         const weeksPlayed = document.getElementById('dashboardWeeksPlayed');
         const subtext = document.getElementById('dashboardPotSubtext');
         const label = document.getElementById('dashboardWeeklyPotLabel');
+        const gameweekLabel = document.getElementById('dashboardGameweekLabel');
 
         if (weeklyPot) weeklyPot.textContent = money(data.weeklyWinnerPot);
         if (seasonPot) seasonPot.textContent = money(data.seasonPot);
         if (weeksPlayed) weeksPlayed.textContent = String(data.weeksPlayed || 0);
         if (label) label.textContent = (data.currentGameweek || 'Current GW') + ' winner';
+        if (gameweekLabel) gameweekLabel.textContent = 'GAMEWEEK ' + String(data.currentGameweek || '—').replace(/^GW/i, '');
         if (subtext) subtext.textContent = 'Based on ' + String(data.submissionCount || 0) + ' submission' + (Number(data.submissionCount || 0) === 1 ? '' : 's') + '.';
       })
       .withFailureHandler(function(){
