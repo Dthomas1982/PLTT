@@ -16,6 +16,7 @@ function getAuthoritativePublicGameweek() {
   const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
   const values = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
   const index = buildHeaderIndex(headers);
+
   if (index.gameweekid === undefined || index.startdate === undefined) {
     throw new Error('Gameweeks sheet must contain GameweekID and StartDate columns.');
   }
@@ -27,15 +28,19 @@ function getAuthoritativePublicGameweek() {
   values.forEach(function(row) {
     const gameweekID = String(row[index.gameweekid] || '').trim();
     if (!gameweekID) return;
+
     const value = row[index.startdate];
     let startDate = null;
+
     if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) {
       startDate = value;
     } else if (value !== '' && value != null) {
       const parsed = new Date(value);
       if (!isNaN(parsed.getTime())) startDate = parsed;
     }
+
     if (!startDate || startDate.getTime() > now.getTime()) return;
+
     if (!selectedStart || startDate.getTime() > selectedStart.getTime()) {
       selected = {
         gameweekID: gameweekID,
@@ -45,6 +50,7 @@ function getAuthoritativePublicGameweek() {
       selectedStart = startDate;
     }
   });
+
   return selected;
 }
 
@@ -58,12 +64,14 @@ function getGameweekFixturesByID(gameweekID) {
   const values = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
   const displayValues = sheet.getRange(2, 1, lastRow - 1, lastColumn).getDisplayValues();
   const index = buildHeaderIndex(headers);
+
   ['matchid','seasonid','gameweekid','date','kickoff','hometeamid','awayteamid'].forEach(function(key) {
     if (index[key] === undefined) throw new Error('Fixtures sheet must contain a ' + key + ' column.');
   });
 
   const teams = getTeamsLookup();
   const target = String(gameweekID || '').trim();
+
   return values.map(function(row, rowIndex) {
     return {row: row, displayRow: displayValues[rowIndex]};
   }).filter(function(item) {
@@ -73,6 +81,7 @@ function getGameweekFixturesByID(gameweekID) {
     const displayRow = item.displayRow;
     const homeID = String(row[index.hometeamid] || '').trim().toUpperCase();
     const awayID = String(row[index.awayteamid] || '').trim().toUpperCase();
+
     return {
       matchID: String(row[index.matchid] || ''),
       seasonID: String(row[index.seasonid] || ''),
@@ -88,69 +97,48 @@ function getGameweekFixturesByID(gameweekID) {
   });
 }
 
-function gameweekBoardTruthy(value) {
-  if (value === true || value === 1) return true;
-  if (typeof value === 'string') return ['true','yes','1','y'].indexOf(value.trim().toLowerCase()) !== -1;
-  return false;
-}
-
 /**
- * Build the authoritative list of submitted Prediction Sets for a Gameweek.
- * Submission is recognised from Submitted OR from saved PredictionItems.
- * This deliberately does not depend on fixed column positions or on the
- * Players sheet Active flag.
+ * Return PredictionSet IDs that contain saved prediction items for the
+ * supplied Gameweek. This is used as a backwards-compatible submission
+ * signal for records created before Submitted was marked automatically.
+ * It never returns the prediction values themselves.
  */
-function getSubmittedPredictionSetsForGameweek(gameweekID) {
+function getSavedPredictionSetIDsForGameweek(gameweekID) {
   const result = {};
-  const target = String(gameweekID || '').trim();
-  if (!target) return result;
-
   const setSheet = getSheet(SHEETS.PREDICTIONSETS);
   const setLastRow = setSheet.getLastRow();
-  const setLastColumn = setSheet.getLastColumn();
-  if (setLastRow <= 1 || setLastColumn <= 0) return result;
 
-  const setHeaders = setSheet.getRange(1, 1, 1, setLastColumn).getValues()[0];
-  const setIndex = buildHeaderIndex(setHeaders);
-  if (setIndex.predictionsetid === undefined || setIndex.playerid === undefined || setIndex.gameweekid === undefined) {
-    throw new Error('PredictionSets sheet must contain PredictionSetID, PlayerID and GameweekID columns.');
-  }
+  if (setLastRow <= 1) return result;
 
-  const setValues = setSheet.getRange(2, 1, setLastRow - 1, setLastColumn).getValues();
-  const candidateSets = {};
+  const setValues = setSheet.getRange(2, 1, setLastRow - 1, 6).getValues();
+  const validSets = {};
 
   setValues.forEach(function(row) {
-    const setID = String(row[setIndex.predictionsetid] || '').trim();
-    const playerID = String(row[setIndex.playerid] || '').trim();
-    const gwID = String(row[setIndex.gameweekid] || '').trim();
-    if (!setID || !playerID || gwID !== target) return;
+    const predictionSetID = String(row[0] || '').trim();
+    const playerID = String(row[1] || '').trim();
+    const gwID = String(row[2] || '').trim();
+    const current = Boolean(row[5]);
 
-    const current = setIndex.current === undefined ? true : gameweekBoardTruthy(row[setIndex.current]);
-    const submitted = setIndex.submitted !== undefined && gameweekBoardTruthy(row[setIndex.submitted]);
-    if (current || submitted) {
-      candidateSets[setID] = {playerID: playerID, submitted: submitted};
+    if (predictionSetID && playerID && gwID === gameweekID && current) {
+      validSets[predictionSetID] = playerID;
     }
   });
 
-  // Any saved item is definitive evidence that a prediction set contains a
-  // submission, even if an older record has Submitted/Current stored oddly.
+  if (!Object.keys(validSets).length) return result;
+
   const itemSheet = getSheet(SHEETS.PREDICTIONITEMS);
   const itemLastRow = itemSheet.getLastRow();
-  const itemLastColumn = itemSheet.getLastColumn();
-  if (itemLastRow > 1 && itemLastColumn > 0) {
-    const itemHeaders = itemSheet.getRange(1, 1, 1, itemLastColumn).getValues()[0];
-    const itemIndex = buildHeaderIndex(itemHeaders);
-    if (itemIndex.predictionsetid !== undefined) {
-      const itemValues = itemSheet.getRange(2, 1, itemLastRow - 1, itemLastColumn).getValues();
-      itemValues.forEach(function(row) {
-        const setID = String(row[itemIndex.predictionsetid] || '').trim();
-        if (setID && candidateSets[setID]) result[setID] = candidateSets[setID].playerID;
-      });
-    }
-  }
+  if (itemLastRow <= 1) return result;
 
-  Object.keys(candidateSets).forEach(function(setID) {
-    if (candidateSets[setID].submitted) result[setID] = candidateSets[setID].playerID;
+  const itemValues = itemSheet.getRange(2, 1, itemLastRow - 1, 4).getValues();
+
+  itemValues.forEach(function(row) {
+    const predictionSetID = String(row[0] || '').trim();
+    if (!validSets[predictionSetID]) return;
+
+    // A row belonging to the current Gameweek prediction set is enough to
+    // establish that selections were saved. Values are never returned here.
+    result[predictionSetID] = validSets[predictionSetID];
   });
 
   return result;
@@ -164,13 +152,14 @@ function getGameweekPredictionBoard() {
     const lockState = getGameweekLockState(gameweek.gameweekID);
     const started = gameweek.startDate && gameweek.startDate.getTime() <= new Date().getTime();
     const deadlinePassed = lockState.deadline && lockState.deadline.getTime() <= new Date().getTime();
+
     if (!started) return errorResponse('This Gameweek has not started yet.');
 
     const fixtures = getGameweekFixturesByID(gameweek.gameweekID);
     const playersSheet = getSheet(SHEETS.PLAYERS);
     const playerLastRow = playersSheet.getLastRow();
     const playerLastColumn = playersSheet.getLastColumn();
-    const playerLookup = {};
+    const players = [];
 
     if (playerLastRow > 1 && playerLastColumn > 0) {
       const headers = playersSheet.getRange(1, 1, 1, playerLastColumn).getValues()[0];
@@ -179,25 +168,51 @@ function getGameweekPredictionBoard() {
       values.forEach(function(row) {
         const playerID = String(index.playerid !== undefined ? row[index.playerid] : '').trim();
         const displayName = String(index.displayname !== undefined ? row[index.displayname] : '').trim();
-        if (playerID) playerLookup[playerID] = displayName || playerID;
+        const active = index.active === undefined || Boolean(row[index.active]);
+        if (playerID && displayName && active) players.push({playerID: playerID, displayName: displayName});
       });
     }
 
-    const submittedSets = getSubmittedPredictionSetsForGameweek(gameweek.gameweekID);
-    const submittedPlayerIDs = {};
-    Object.keys(submittedSets).forEach(function(setID) {
-      submittedPlayerIDs[submittedSets[setID]] = setID;
+    const playerLookup = {};
+    players.forEach(function(player) { playerLookup[player.playerID] = player; });
+
+    const setSheet = getSheet(SHEETS.PREDICTIONSETS);
+    const setLastRow = setSheet.getLastRow();
+    const setLastColumn = setSheet.getLastColumn();
+    const submittedPlayers = {};
+    const savedSetIDs = getSavedPredictionSetIDsForGameweek(gameweek.gameweekID);
+
+    if (setLastRow > 1 && setLastColumn > 0) {
+      const headers = setSheet.getRange(1, 1, 1, setLastColumn).getValues()[0];
+      const values = setSheet.getRange(2, 1, setLastRow - 1, setLastColumn).getValues();
+      const index = buildHeaderIndex(headers);
+
+      values.forEach(function(row) {
+        const playerID = String(index.playerid !== undefined ? row[index.playerid] : '').trim();
+        const gwID = String(index.gameweekid !== undefined ? row[index.gameweekid] : '').trim();
+        const current = index.current === undefined ? true : Boolean(row[index.current]);
+        const submitted = index.submitted === undefined ? false : Boolean(row[index.submitted]);
+        const predictionSetID = String(index.predictionsetid !== undefined ? row[index.predictionsetid] : '').trim();
+
+        if (!playerID || gwID !== gameweek.gameweekID || !current || !predictionSetID || !playerLookup[playerID]) return;
+
+        // Submitted is the preferred flag. The saved-item fallback keeps
+        // existing valid submissions visible even if they were created before
+        // the automatic Submitted flag was introduced.
+        if (submitted || savedSetIDs[predictionSetID]) {
+          submittedPlayers[playerID] = predictionSetID;
+        }
+      });
+    }
+
+    const submittedList = players.filter(function(player) {
+      return Boolean(submittedPlayers[player.playerID]);
+    }).map(function(player) {
+      return {playerID: player.playerID, displayName: player.displayName};
     });
 
-    const submittedList = Object.keys(submittedPlayerIDs).map(function(playerID) {
-      return {
-        playerID: playerID,
-        displayName: playerLookup[playerID] || playerID
-      };
-    }).sort(function(a, b) {
-      return a.displayName.localeCompare(b.displayName);
-    });
-
+    // Before the deadline, expose submission status only. No prediction
+    // values are returned to the browser.
     if (!deadlinePassed || !lockState.locked) {
       return successResponse('Gameweek Submission Status Loaded', {
         gameweekID: gameweek.gameweekID,
@@ -222,8 +237,9 @@ function getGameweekPredictionBoard() {
       const values = itemSheet.getRange(2, 1, itemLastRow - 1, itemLastColumn).getValues();
       const index = buildHeaderIndex(headers);
       const setToPlayer = {};
-      Object.keys(submittedSets).forEach(function(setID) {
-        setToPlayer[setID] = submittedSets[setID];
+
+      Object.keys(submittedPlayers).forEach(function(playerID) {
+        setToPlayer[submittedPlayers[playerID]] = playerID;
       });
 
       values.forEach(function(row) {
@@ -265,6 +281,7 @@ function getGameweekPredictionBoard() {
       players: playerList,
       submissionCount: playerList.length
     });
+
   } catch (err) {
     logAction(FEATURES.PREDICTION, 'GAMEWEEK_BOARD_ERROR', '', err.message);
     return errorResponse(err.message);
