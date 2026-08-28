@@ -4,7 +4,7 @@
  *
  * Public Gameweek prediction board.
  * StartDate selects the current Gameweek.
- * Deadline controls when predictions become visible.
+ * Deadline in the Gameweeks sheet is the authoritative lock time.
  **********************************************************************/
 
 function getAuthoritativePublicGameweek() {
@@ -41,11 +41,21 @@ function getAuthoritativePublicGameweek() {
       selected = {
         gameweekID: id,
         startDate: start,
-        status: index.status !== undefined ? String(row[index.status] || '').trim() : ''
+        status: index.status !== undefined ? String(row[index.status] || '').trim() : '',
+        deadline: index.deadline !== undefined ? parseGameweekBoardDate_(row[index.deadline]) : null
       };
     }
   });
   return selected;
+}
+
+function parseGameweekBoardDate_(value) {
+  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) {
+    return new Date(value.getTime());
+  }
+  if (value === '' || value == null) return null;
+  const parsed = new Date(value);
+  return isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function getGameweekFixturesByID(gameweekID) {
@@ -105,8 +115,8 @@ function getGWBoardSubmissionMap(gameweekID) {
 
     const submitted = index.submitted !== undefined && gwBoardBool(row[index.submitted]);
     const current = index.current === undefined || gwBoardBool(row[index.current]);
-    if (!current) return;
-    if (submitted) result[playerID] = setID;
+    if (!current || !submitted) return;
+    result[playerID] = setID;
   });
   return result;
 }
@@ -115,12 +125,12 @@ function getGameweekPredictionBoard() {
   try {
     const gameweek = getAuthoritativePublicGameweek();
     if (!gameweek) return errorResponse('No Gameweek is currently in play.');
+    if (!gameweek.deadline) return errorResponse('No valid deadline is configured for ' + gameweek.gameweekID + '.');
 
-    const lockState = getGameweekLockState(gameweek.gameweekID);
-    if (!lockState.deadline) return errorResponse('No valid deadline is configured for ' + gameweek.gameweekID + '.');
-
+    // The Deadline cell in Gameweeks is the single authoritative lock time.
+    // Do not use a second lock-state helper here: it can disagree with the sheet.
     const now = new Date();
-    const deadlinePassed = now.getTime() >= lockState.deadline.getTime();
+    const deadlinePassed = now.getTime() >= gameweek.deadline.getTime();
     const fixtures = getGameweekFixturesByID(gameweek.gameweekID);
     const submitted = getGWBoardSubmissionMap(gameweek.gameweekID);
 
@@ -144,24 +154,11 @@ function getGameweekPredictionBoard() {
       return { playerID: playerID, displayName: playerLookup[playerID] || playerID };
     }).sort(function(a,b) { return a.displayName.localeCompare(b.displayName); });
 
-    if (!deadlinePassed) {
-      return successResponse('Gameweek Submission Status Loaded', {
-        gameweekID: gameweek.gameweekID,
-        locked: false,
-        inPlay: true,
-        deadlinePassed: false,
-        submissionOnly: true,
-        fixtures: [],
-        players: players,
-        submissionCount: players.length
-      });
-    }
-
     const itemSheet = getSheet(SHEETS.PREDICTIONITEMS);
     const itemLastRow = itemSheet.getLastRow();
     const itemLastColumn = itemSheet.getLastColumn();
     const lookup = {};
-    if (itemLastRow > 1 && itemLastColumn > 0) {
+    if (deadlinePassed && itemLastRow > 1 && itemLastColumn > 0) {
       const headers = itemSheet.getRange(1, 1, 1, itemLastColumn).getValues()[0];
       const values = itemSheet.getRange(2, 1, itemLastRow - 1, itemLastColumn).getValues();
       const index = buildHeaderIndex(headers);
@@ -191,15 +188,15 @@ function getGameweekPredictionBoard() {
       };
     });
 
-    return successResponse('Gameweek Predictions Loaded', {
+    return successResponse(deadlinePassed ? 'Gameweek Predictions Loaded' : 'Gameweek Submission Status Loaded', {
       gameweekID: gameweek.gameweekID,
-      locked: true,
+      locked: deadlinePassed,
       inPlay: true,
-      deadlinePassed: true,
-      submissionOnly: false,
+      deadlinePassed: deadlinePassed,
+      submissionOnly: !deadlinePassed,
       fixtures: fixtures,
       players: playerList,
-      submissionCount: playerList.length
+      submissionCount: players.length
     });
   } catch (err) {
     logAction(FEATURES.PREDICTION, 'GAMEWEEK_BOARD_ERROR', '', err.message);
