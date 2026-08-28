@@ -2,9 +2,9 @@
  * PLTT Platform
  * GameweekBoard.js
  *
- * Public Gameweek prediction board and shared Gameweek fixture helpers.
- * Before deadline: show submitted players only; never expose scores.
- * After deadline: show submitted players and their predictions.
+ * Public Gameweek prediction board.
+ * StartDate selects the current Gameweek.
+ * Deadline controls when predictions become visible.
  **********************************************************************/
 
 function getAuthoritativePublicGameweek() {
@@ -16,7 +16,6 @@ function getAuthoritativePublicGameweek() {
   const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
   const values = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
   const index = buildHeaderIndex(headers);
-
   if (index.gameweekid === undefined || index.startdate === undefined) {
     throw new Error('Gameweeks sheet must contain GameweekID and StartDate columns.');
   }
@@ -26,31 +25,26 @@ function getAuthoritativePublicGameweek() {
   let selectedStart = null;
 
   values.forEach(function(row) {
-    const gameweekID = String(row[index.gameweekid] || '').trim();
-    if (!gameweekID) return;
-
+    const id = String(row[index.gameweekid] || '').trim();
+    if (!id) return;
     const value = row[index.startdate];
-    let startDate = null;
-
+    let start = null;
     if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) {
-      startDate = value;
+      start = new Date(value.getTime());
     } else if (value !== '' && value != null) {
       const parsed = new Date(value);
-      if (!isNaN(parsed.getTime())) startDate = parsed;
+      if (!isNaN(parsed.getTime())) start = parsed;
     }
-
-    if (!startDate || startDate.getTime() > now.getTime()) return;
-
-    if (!selectedStart || startDate.getTime() > selectedStart.getTime()) {
+    if (!start || start.getTime() > now.getTime()) return;
+    if (!selectedStart || start.getTime() > selectedStart.getTime()) {
+      selectedStart = start;
       selected = {
-        gameweekID: gameweekID,
-        startDate: startDate,
+        gameweekID: id,
+        startDate: start,
         status: index.status !== undefined ? String(row[index.status] || '').trim() : ''
       };
-      selectedStart = startDate;
     }
   });
-
   return selected;
 }
 
@@ -59,88 +53,61 @@ function getGameweekFixturesByID(gameweekID) {
   const lastRow = sheet.getLastRow();
   const lastColumn = sheet.getLastColumn();
   if (lastRow <= 1 || lastColumn <= 0) return [];
-
   const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
   const values = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
   const displayValues = sheet.getRange(2, 1, lastRow - 1, lastColumn).getDisplayValues();
   const index = buildHeaderIndex(headers);
-
   ['matchid','seasonid','gameweekid','date','kickoff','hometeamid','awayteamid'].forEach(function(key) {
     if (index[key] === undefined) throw new Error('Fixtures sheet must contain a ' + key + ' column.');
   });
-
   const teams = getTeamsLookup();
   const target = String(gameweekID || '').trim();
-
-  return values.map(function(row, rowIndex) {
-    return {row: row, displayRow: displayValues[rowIndex]};
-  }).filter(function(item) {
-    return String(item.row[index.gameweekid] || '').trim() === target;
-  }).map(function(item) {
-    const row = item.row;
-    const displayRow = item.displayRow;
-    const homeID = String(row[index.hometeamid] || '').trim().toUpperCase();
-    const awayID = String(row[index.awayteamid] || '').trim().toUpperCase();
-
-    return {
-      matchID: String(row[index.matchid] || ''),
-      seasonID: String(row[index.seasonid] || ''),
-      gameweekID: target,
-      date: String(displayRow[index.date] || '').trim(),
-      kickoff: String(displayRow[index.kickoff] || '').trim(),
-      status: index.status !== undefined ? String(row[index.status] || '').trim() : '',
-      homeTeam: teams[homeID] || null,
-      awayTeam: teams[awayID] || null
-    };
-  }).sort(function(a, b) {
-    return (a.date + ' ' + a.kickoff).localeCompare(b.date + ' ' + b.kickoff);
-  });
+  return values.map(function(row, i) { return {row: row, displayRow: displayValues[i]}; })
+    .filter(function(item) { return String(item.row[index.gameweekid] || '').trim() === target; })
+    .map(function(item) {
+      const row = item.row, displayRow = item.displayRow;
+      const homeID = String(row[index.hometeamid] || '').trim().toUpperCase();
+      const awayID = String(row[index.awayteamid] || '').trim().toUpperCase();
+      return {
+        matchID: String(row[index.matchid] || ''), seasonID: String(row[index.seasonid] || ''),
+        gameweekID: target, date: String(displayRow[index.date] || '').trim(),
+        kickoff: String(displayRow[index.kickoff] || '').trim(),
+        status: index.status !== undefined ? String(row[index.status] || '').trim() : '',
+        homeTeam: teams[homeID] || null, awayTeam: teams[awayID] || null
+      };
+    }).sort(function(a,b) { return (a.date + ' ' + a.kickoff).localeCompare(b.date + ' ' + b.kickoff); });
 }
 
-/**
- * Return PredictionSet IDs that contain saved prediction items for the
- * supplied Gameweek. This is used as a backwards-compatible submission
- * signal for records created before Submitted was marked automatically.
- * It never returns the prediction values themselves.
- */
-function getSavedPredictionSetIDsForGameweek(gameweekID) {
+function gwBoardBool(value) {
+  if (value === true || value === 1) return true;
+  return typeof value === 'string' && ['true','yes','1','y'].indexOf(value.trim().toLowerCase()) !== -1;
+}
+
+function getGWBoardSubmissionMap(gameweekID) {
   const result = {};
-  const setSheet = getSheet(SHEETS.PREDICTIONSETS);
-  const setLastRow = setSheet.getLastRow();
+  const sheet = getSheet(SHEETS.PREDICTIONSETS);
+  const lastRow = sheet.getLastRow();
+  const lastColumn = sheet.getLastColumn();
+  if (lastRow <= 1 || lastColumn <= 0) return result;
 
-  if (setLastRow <= 1) return result;
+  const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const values = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
+  const index = buildHeaderIndex(headers);
+  if (index.predictionsetid === undefined || index.playerid === undefined || index.gameweekid === undefined) {
+    throw new Error('PredictionSets sheet must contain PredictionSetID, PlayerID and GameweekID columns.');
+  }
 
-  const setValues = setSheet.getRange(2, 1, setLastRow - 1, 6).getValues();
-  const validSets = {};
+  values.forEach(function(row) {
+    const setID = String(row[index.predictionsetid] || '').trim();
+    const playerID = String(row[index.playerid] || '').trim();
+    const gwID = String(row[index.gameweekid] || '').trim();
+    if (!setID || !playerID || gwID !== String(gameweekID).trim()) return;
 
-  setValues.forEach(function(row) {
-    const predictionSetID = String(row[0] || '').trim();
-    const playerID = String(row[1] || '').trim();
-    const gwID = String(row[2] || '').trim();
-    const current = Boolean(row[5]);
-
-    if (predictionSetID && playerID && gwID === gameweekID && current) {
-      validSets[predictionSetID] = playerID;
-    }
+    const submitted = index.submitted !== undefined && gwBoardBool(row[index.submitted]);
+    const current = index.current === undefined || gwBoardBool(row[index.current]);
+    if (!current) return;
+    if (submitted) result[playerID] = setID;
   });
-
-  if (!Object.keys(validSets).length) return result;
-
-  const itemSheet = getSheet(SHEETS.PREDICTIONITEMS);
-  const itemLastRow = itemSheet.getLastRow();
-  if (itemLastRow <= 1) return result;
-
-  const itemValues = itemSheet.getRange(2, 1, itemLastRow - 1, 4).getValues();
-
-  itemValues.forEach(function(row) {
-    const predictionSetID = String(row[0] || '').trim();
-    if (!validSets[predictionSetID]) return;
-
-    // A row belonging to the current Gameweek prediction set is enough to
-    // establish that selections were saved. Values are never returned here.
-    result[predictionSetID] = validSets[predictionSetID];
-  });
-
   return result;
 }
 
@@ -150,129 +117,82 @@ function getGameweekPredictionBoard() {
     if (!gameweek) return errorResponse('No Gameweek is currently in play.');
 
     const lockState = getGameweekLockState(gameweek.gameweekID);
-    const started = gameweek.startDate && gameweek.startDate.getTime() <= new Date().getTime();
-    const deadlinePassed = lockState.deadline && lockState.deadline.getTime() <= new Date().getTime();
+    if (!lockState.deadline) return errorResponse('No valid deadline is configured for ' + gameweek.gameweekID + '.');
 
-    if (!started) return errorResponse('This Gameweek has not started yet.');
-
+    const now = new Date();
+    const deadlinePassed = now.getTime() >= lockState.deadline.getTime();
     const fixtures = getGameweekFixturesByID(gameweek.gameweekID);
+    const submitted = getGWBoardSubmissionMap(gameweek.gameweekID);
+
     const playersSheet = getSheet(SHEETS.PLAYERS);
     const playerLastRow = playersSheet.getLastRow();
     const playerLastColumn = playersSheet.getLastColumn();
-    const players = [];
-
+    const playerLookup = {};
     if (playerLastRow > 1 && playerLastColumn > 0) {
       const headers = playersSheet.getRange(1, 1, 1, playerLastColumn).getValues()[0];
       const values = playersSheet.getRange(2, 1, playerLastRow - 1, playerLastColumn).getValues();
       const index = buildHeaderIndex(headers);
       values.forEach(function(row) {
         const playerID = String(index.playerid !== undefined ? row[index.playerid] : '').trim();
-        const displayName = String(index.displayname !== undefined ? row[index.displayname] : '').trim();
-        const active = index.active === undefined || Boolean(row[index.active]);
-        if (playerID && displayName && active) players.push({playerID: playerID, displayName: displayName});
+        const name = String(index.displayname !== undefined ? row[index.displayname] : '').trim();
+        if (playerID) playerLookup[playerID] = name || playerID;
       });
     }
 
-    const playerLookup = {};
-    players.forEach(function(player) { playerLookup[player.playerID] = player; });
+    const playerIDs = Object.keys(submitted);
+    const players = playerIDs.map(function(playerID) {
+      return { playerID: playerID, displayName: playerLookup[playerID] || playerID };
+    }).sort(function(a,b) { return a.displayName.localeCompare(b.displayName); });
 
-    const setSheet = getSheet(SHEETS.PREDICTIONSETS);
-    const setLastRow = setSheet.getLastRow();
-    const setLastColumn = setSheet.getLastColumn();
-    const submittedPlayers = {};
-    const savedSetIDs = getSavedPredictionSetIDsForGameweek(gameweek.gameweekID);
-
-    if (setLastRow > 1 && setLastColumn > 0) {
-      const headers = setSheet.getRange(1, 1, 1, setLastColumn).getValues()[0];
-      const values = setSheet.getRange(2, 1, setLastRow - 1, setLastColumn).getValues();
-      const index = buildHeaderIndex(headers);
-
-      values.forEach(function(row) {
-        const playerID = String(index.playerid !== undefined ? row[index.playerid] : '').trim();
-        const gwID = String(index.gameweekid !== undefined ? row[index.gameweekid] : '').trim();
-        const current = index.current === undefined ? true : Boolean(row[index.current]);
-        const submitted = index.submitted === undefined ? false : Boolean(row[index.submitted]);
-        const predictionSetID = String(index.predictionsetid !== undefined ? row[index.predictionsetid] : '').trim();
-
-        if (!playerID || gwID !== gameweek.gameweekID || !current || !predictionSetID || !playerLookup[playerID]) return;
-
-        // Submitted is the preferred flag. The saved-item fallback keeps
-        // existing valid submissions visible even if they were created before
-        // the automatic Submitted flag was introduced.
-        if (submitted || savedSetIDs[predictionSetID]) {
-          submittedPlayers[playerID] = predictionSetID;
-        }
-      });
-    }
-
-    const submittedList = players.filter(function(player) {
-      return Boolean(submittedPlayers[player.playerID]);
-    }).map(function(player) {
-      return {playerID: player.playerID, displayName: player.displayName};
-    });
-
-    // Before the deadline, expose submission status only. No prediction
-    // values are returned to the browser.
-    if (!deadlinePassed || !lockState.locked) {
+    if (!deadlinePassed) {
       return successResponse('Gameweek Submission Status Loaded', {
         gameweekID: gameweek.gameweekID,
-        status: gameweek.status,
         locked: false,
         inPlay: true,
         deadlinePassed: false,
         submissionOnly: true,
         fixtures: [],
-        players: submittedList,
-        submissionCount: submittedList.length
+        players: players,
+        submissionCount: players.length
       });
     }
 
     const itemSheet = getSheet(SHEETS.PREDICTIONITEMS);
     const itemLastRow = itemSheet.getLastRow();
     const itemLastColumn = itemSheet.getLastColumn();
-    const predictionLookup = {};
-
+    const lookup = {};
     if (itemLastRow > 1 && itemLastColumn > 0) {
       const headers = itemSheet.getRange(1, 1, 1, itemLastColumn).getValues()[0];
       const values = itemSheet.getRange(2, 1, itemLastRow - 1, itemLastColumn).getValues();
       const index = buildHeaderIndex(headers);
-      const setToPlayer = {};
-
-      Object.keys(submittedPlayers).forEach(function(playerID) {
-        setToPlayer[submittedPlayers[playerID]] = playerID;
-      });
-
       values.forEach(function(row) {
-        const predictionSetID = String(index.predictionsetid !== undefined ? row[index.predictionsetid] : '').trim();
+        const setID = String(index.predictionsetid !== undefined ? row[index.predictionsetid] : '').trim();
+        if (!setID) return;
+        const playerID = playerIDs.find(function(id) { return submitted[id] === setID; });
+        if (!playerID) return;
         const matchID = String(index.matchid !== undefined ? row[index.matchid] : '').trim();
-        const playerID = setToPlayer[predictionSetID];
-        if (!playerID || !matchID) return;
-        if (!predictionLookup[playerID]) predictionLookup[playerID] = {};
-        predictionLookup[playerID][matchID] = {
-          homePrediction: row[index.homeprediction] === '' ? '' : Number(row[index.homeprediction]),
-          awayPrediction: row[index.awayprediction] === '' ? '' : Number(row[index.awayprediction])
+        if (!matchID) return;
+        if (!lookup[playerID]) lookup[playerID] = {};
+        lookup[playerID][matchID] = {
+          homePrediction: index.homeprediction !== undefined && row[index.homeprediction] !== '' ? Number(row[index.homeprediction]) : '',
+          awayPrediction: index.awayprediction !== undefined && row[index.awayprediction] !== '' ? Number(row[index.awayprediction]) : ''
         };
       });
     }
 
-    const playerList = submittedList.map(function(player) {
+    const playerList = players.map(function(player) {
       return {
         playerID: player.playerID,
         displayName: player.displayName,
         predictions: fixtures.map(function(fixture) {
-          const prediction = predictionLookup[player.playerID] && predictionLookup[player.playerID][fixture.matchID];
-          return {
-            matchID: fixture.matchID,
-            homePrediction: prediction ? prediction.homePrediction : '',
-            awayPrediction: prediction ? prediction.awayPrediction : ''
-          };
+          const p = lookup[player.playerID] && lookup[player.playerID][fixture.matchID];
+          return {matchID: fixture.matchID, homePrediction: p ? p.homePrediction : '', awayPrediction: p ? p.awayPrediction : ''};
         })
       };
     });
 
     return successResponse('Gameweek Predictions Loaded', {
       gameweekID: gameweek.gameweekID,
-      status: gameweek.status,
       locked: true,
       inPlay: true,
       deadlinePassed: true,
@@ -281,7 +201,6 @@ function getGameweekPredictionBoard() {
       players: playerList,
       submissionCount: playerList.length
     });
-
   } catch (err) {
     logAction(FEATURES.PREDICTION, 'GAMEWEEK_BOARD_ERROR', '', err.message);
     return errorResponse(err.message);
