@@ -32,8 +32,8 @@ function getAuthoritativePublicGameweek() {
     if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) {
       start = new Date(value.getTime());
     } else if (value !== '' && value != null) {
-      const parsed = new Date(value);
-      if (!isNaN(parsed.getTime())) start = parsed;
+      const parsed = parseGameweekBoardDate_(value);
+      if (parsed) start = parsed;
     }
     if (!start || start.getTime() > now.getTime()) return;
     if (!selectedStart || start.getTime() > selectedStart.getTime()) {
@@ -54,7 +54,27 @@ function parseGameweekBoardDate_(value) {
     return new Date(value.getTime());
   }
   if (value === '' || value == null) return null;
-  const parsed = new Date(value);
+
+  const text = String(value).trim();
+  if (!text) return null;
+
+  // Explicit UK parsing. This prevents 28/08/2026 20:00:00 being
+  // interpreted differently by the Apps Script runtime/browser locale.
+  const uk = text.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (uk) {
+    const day = Number(uk[1]);
+    const month = Number(uk[2]) - 1;
+    const year = Number(uk[3]);
+    const hour = Number(uk[4] || 0);
+    const minute = Number(uk[5] || 0);
+    const second = Number(uk[6] || 0);
+    const parsed = new Date(year, month, day, hour, minute, second);
+    if (!isNaN(parsed.getTime()) && parsed.getFullYear() === year && parsed.getMonth() === month && parsed.getDate() === day) {
+      return parsed;
+    }
+  }
+
+  const parsed = new Date(text);
   return isNaN(parsed.getTime()) ? null : parsed;
 }
 
@@ -128,7 +148,7 @@ function getGameweekPredictionBoard() {
     if (!gameweek.deadline) return errorResponse('No valid deadline is configured for ' + gameweek.gameweekID + '.');
 
     // The Deadline cell in Gameweeks is the single authoritative lock time.
-    // Do not use a second lock-state helper here: it can disagree with the sheet.
+    // Compare it directly with the Apps Script server time.
     const now = new Date();
     const deadlinePassed = now.getTime() >= gameweek.deadline.getTime();
     const fixtures = getGameweekFixturesByID(gameweek.gameweekID);
