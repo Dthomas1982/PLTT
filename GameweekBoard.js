@@ -44,8 +44,11 @@ function getAuthoritativePublicGameweek() {
         gameweekID: id,
         startDate: start,
         status: index.status !== undefined ? String(row[index.status] || '').trim() : '',
+        // Prefer the displayed sheet value for Deadline. This is the value
+        // the administrator sees in the Gameweeks tab and avoids any
+        // spreadsheet/browser locale conversion of a Date object.
         deadline: index.deadline !== undefined
-          ? (parseGameweekBoardDate_(row[index.deadline]) || parseGameweekBoardDate_(deadlineDisplay))
+          ? (parseGameweekBoardDate_(deadlineDisplay) || parseGameweekBoardDate_(row[index.deadline]))
           : null,
         deadlineDisplay: String(deadlineDisplay || '').trim()
       };
