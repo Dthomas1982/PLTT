@@ -15,6 +15,7 @@ function getAuthoritativePublicGameweek() {
 
   const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0];
   const values = sheet.getRange(2, 1, lastRow - 1, lastColumn).getValues();
+  const displayValues = sheet.getRange(2, 1, lastRow - 1, lastColumn).getDisplayValues();
   const index = buildHeaderIndex(headers);
   if (index.gameweekid === undefined || index.startdate === undefined) {
     throw new Error('Gameweeks sheet must contain GameweekID and StartDate columns.');
@@ -24,28 +25,33 @@ function getAuthoritativePublicGameweek() {
   let selected = null;
   let selectedStart = null;
 
-  values.forEach(function(row) {
+  values.forEach(function(row, rowIndex) {
     const id = String(row[index.gameweekid] || '').trim();
     if (!id) return;
-    const value = row[index.startdate];
-    let start = null;
-    if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value.getTime())) {
-      start = new Date(value.getTime());
-    } else if (value !== '' && value != null) {
-      const parsed = parseGameweekBoardDate_(value);
-      if (parsed) start = parsed;
-    }
+
+    const startDisplay = displayValues[rowIndex][index.startdate];
+    const deadlineDisplay = index.deadline !== undefined
+      ? displayValues[rowIndex][index.deadline]
+      : '';
+
+    let start = parseGameweekBoardDate_(row[index.startdate]);
+    if (!start && startDisplay) start = parseGameweekBoardDate_(startDisplay);
     if (!start || start.getTime() > now.getTime()) return;
+
     if (!selectedStart || start.getTime() > selectedStart.getTime()) {
       selectedStart = start;
       selected = {
         gameweekID: id,
         startDate: start,
         status: index.status !== undefined ? String(row[index.status] || '').trim() : '',
-        deadline: index.deadline !== undefined ? parseGameweekBoardDate_(row[index.deadline]) : null
+        deadline: index.deadline !== undefined
+          ? (parseGameweekBoardDate_(row[index.deadline]) || parseGameweekBoardDate_(deadlineDisplay))
+          : null,
+        deadlineDisplay: String(deadlineDisplay || '').trim()
       };
     }
   });
+
   return selected;
 }
 
@@ -58,8 +64,7 @@ function parseGameweekBoardDate_(value) {
   const text = String(value).trim();
   if (!text) return null;
 
-  // Explicit UK parsing. This prevents 28/08/2026 20:00:00 being
-  // interpreted differently by the Apps Script runtime/browser locale.
+  // Explicit UK parsing for sheet values such as 28/08/2026 20:00:00.
   const uk = text.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
   if (uk) {
     const day = Number(uk[1]);
@@ -76,6 +81,14 @@ function parseGameweekBoardDate_(value) {
 
   const parsed = new Date(text);
   return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function isGameweekDeadlinePassed_(deadline, now) {
+  if (!deadline || isNaN(deadline.getTime())) return false;
+  const timezone = APP.TIMEZONE || Session.getScriptTimeZone() || 'Europe/London';
+  const deadlineKey = Utilities.formatDate(deadline, timezone, 'yyyyMMddHHmmss');
+  const nowKey = Utilities.formatDate(now, timezone, 'yyyyMMddHHmmss');
+  return nowKey >= deadlineKey;
 }
 
 function getGameweekFixturesByID(gameweekID) {
@@ -147,9 +160,10 @@ function getGameweekPredictionBoard() {
     if (!gameweek) return errorResponse('No Gameweek is currently in play.');
     if (!gameweek.deadline) return errorResponse('No valid deadline is configured for ' + gameweek.gameweekID + '.');
 
-    // The Deadline cell in Gameweeks is the single authoritative lock time.
+    // Deadline is authoritative. Status is deliberately NOT used to decide
+    // whether predictions are visible.
     const now = new Date();
-    const deadlinePassed = now.getTime() >= gameweek.deadline.getTime();
+    const deadlinePassed = isGameweekDeadlinePassed_(gameweek.deadline, now);
     const fixtures = getGameweekFixturesByID(gameweek.gameweekID);
     const submitted = getGWBoardSubmissionMap(gameweek.gameweekID);
 
@@ -214,8 +228,9 @@ function getGameweekPredictionBoard() {
       deadlinePassed: deadlinePassed,
       submissionOnly: !deadlinePassed,
       deadline: gameweek.deadline.toISOString(),
+      deadlineDisplay: gameweek.deadlineDisplay,
       serverNow: now.toISOString(),
-      fixtures: fixtures,
+      fixtures: deadlinePassed ? fixtures : [],
       players: playerList,
       submissionCount: players.length
     });
