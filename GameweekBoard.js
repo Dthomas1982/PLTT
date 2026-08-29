@@ -148,7 +148,6 @@ function getGameweekPredictionBoard() {
     if (!gameweek.deadline) return errorResponse('No valid deadline is configured for ' + gameweek.gameweekID + '.');
 
     // The Deadline cell in Gameweeks is the single authoritative lock time.
-    // Compare it directly with the Apps Script server time.
     const now = new Date();
     const deadlinePassed = now.getTime() >= gameweek.deadline.getTime();
     const fixtures = getGameweekFixturesByID(gameweek.gameweekID);
@@ -214,6 +213,8 @@ function getGameweekPredictionBoard() {
       inPlay: true,
       deadlinePassed: deadlinePassed,
       submissionOnly: !deadlinePassed,
+      deadline: gameweek.deadline.toISOString(),
+      serverNow: now.toISOString(),
       fixtures: fixtures,
       players: playerList,
       submissionCount: players.length
