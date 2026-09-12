@@ -2,11 +2,11 @@
 (function(window, document){
   'use strict';
 
-  const PLTT_WEB_APP = window.PLTT_WEB_APP_URL || '';
-
   window.openPLTTLeaderboard = function(page){
-    if (!PLTT_WEB_APP) return;
-    window.top.location.href = PLTT_WEB_APP + '?page=' + encodeURIComponent(page);
+    const view = page === 'season' ? 'season-leaderboard' : 'weekly-leaderboard';
+    if (window.PLTT && typeof window.PLTT.showAppView === 'function') {
+      window.PLTT.showAppView(view);
+    }
   };
 
   function applyLeaderboardDashboard(){
@@ -15,7 +15,6 @@
     window.PLTT.setupNavigation = function(){
       document.querySelectorAll('.app-nav-item').forEach(button => {
         if (button.dataset.plttBound === '1') return;
-        if (button.dataset.view === 'weekly-leaderboard' || button.dataset.view === 'season-leaderboard') return;
         button.dataset.plttBound = '1';
         button.addEventListener('click', () => this.showAppView(button.dataset.view));
       });
@@ -50,8 +49,8 @@
           <h2>Track the competition</h2>
           <p>Choose the leaderboard you want to view.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
-            <button class="btn-primary" type="button" onclick="window.top.location.href=window.PLTT_WEB_APP_URL+'?page=weekly'">WEEKLY LEADERBOARD</button>
-            <button class="secondary app-card-action" type="button" onclick="window.top.location.href=window.PLTT_WEB_APP_URL+'?page=season'">SEASON LEADERBOARD</button>
+            <button class="btn-primary" type="button" onclick="window.openPLTTLeaderboard('weekly')">WEEKLY LEADERBOARD</button>
+            <button class="secondary app-card-action" type="button" onclick="window.openPLTTLeaderboard('season')">SEASON LEADERBOARD</button>
           </div>
         </article>
 
