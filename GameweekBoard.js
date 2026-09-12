@@ -29,28 +29,27 @@ function getAuthoritativePublicGameweek() {
     const id = String(row[index.gameweekid] || '').trim();
     if (!id) return;
 
-    const startDisplay = displayValues[rowIndex][index.startdate];
-    const deadlineDisplay = index.deadline !== undefined
-      ? displayValues[rowIndex][index.deadline]
-      : '';
-
     let start = parseGameweekBoardDate_(row[index.startdate]);
-    if (!start && startDisplay) start = parseGameweekBoardDate_(startDisplay);
+    if (!start) start = parseGameweekBoardDate_(displayValues[rowIndex][index.startdate]);
     if (!start || start.getTime() > now.getTime()) return;
 
     if (!selectedStart || start.getTime() > selectedStart.getTime()) {
       selectedStart = start;
+      const rawDeadline = index.deadline !== undefined ? row[index.deadline] : '';
+      const displayDeadline = index.deadline !== undefined ? displayValues[rowIndex][index.deadline] : '';
+      const deadline = rawDeadline instanceof Date && !isNaN(rawDeadline.getTime())
+        ? new Date(rawDeadline.getTime())
+        : (parseGameweekBoardDate_(rawDeadline) || parseGameweekBoardDate_(displayDeadline));
+
       selected = {
         gameweekID: id,
         startDate: start,
         status: index.status !== undefined ? String(row[index.status] || '').trim() : '',
-        // Prefer the displayed sheet value for Deadline. This is the value
-        // the administrator sees in the Gameweeks tab and avoids any
-        // spreadsheet/browser locale conversion of a Date object.
-        deadline: index.deadline !== undefined
-          ? (parseGameweekBoardDate_(deadlineDisplay) || parseGameweekBoardDate_(row[index.deadline]))
-          : null,
-        deadlineDisplay: String(deadlineDisplay || '').trim()
+        // Use the raw spreadsheet Date first. getDisplayValues() is locale-formatted
+        // and can turn 9/12/2026 into either 9 December or 12 September depending
+        // on locale, so it must never override a valid Date object from getValues().
+        deadline: deadline,
+        deadlineDisplay: String(displayDeadline || '').trim()
       };
     }
   });
@@ -67,7 +66,7 @@ function parseGameweekBoardDate_(value) {
   const text = String(value).trim();
   if (!text) return null;
 
-  // Explicit UK parsing for sheet values such as 28/08/2026 20:00:00.
+  // Explicit UK parsing for text values such as 28/08/2026 20:00:00.
   const uk = text.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
   if (uk) {
     const day = Number(uk[1]);
