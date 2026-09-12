@@ -11,12 +11,12 @@ function getWeeklyLeaderboardDisplayData(gameweekID) {
   const data = getWeeklyLeaderboardPageDataStrict(gameweekID || '');
   const sheet = getSheet(SHEETS.WEEKLYLEADERBOARD);
 
-  // Always make the sheet authoritative for the UI. If there is no
-  // scorable Gameweek, clear stale weekly data rather than displaying it.
-  if (!data || !Array.isArray(data.rows)) {
+  // If there is no scorable Gameweek, remove stale weekly rows.
+  if (!data || !Array.isArray(data.rows) || Number(data.fixturesTotal || 0) === 0) {
     writeWeeklyLeaderboardSheet_([]);
   }
 
+  // The sheet is the authoritative display source after the refresh.
   const rows = readLeaderboardSheet_(sheet);
 
   return {
@@ -35,8 +35,8 @@ function getSeasonLeaderboardDisplayData() {
   // Recalculate first so the SeasonLeaderboard sheet is current.
   recalculateLeaderboard();
 
-  // The display deliberately reads the sheet after the refresh rather
-  // than using the in-memory calculation result.
+  // Deliberately read the sheet after the refresh rather than using
+  // the in-memory calculation result.
   const sheet = getSheet(SHEETS.SEASONLEADERBOARD);
   const rows = readLeaderboardSheet_(sheet).filter(function(row) {
     return row.played > 0;
