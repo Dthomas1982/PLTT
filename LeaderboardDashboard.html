@@ -5,11 +5,28 @@
   const PLTT_WEB_APP = '<?= webAppUrl ?>';
 
   window.openPLTTLeaderboard = function(page){
-    window.top.location.href = PLTT_WEB_APP + '?page=' + encodeURIComponent(page);
+    const url = PLTT_WEB_APP + '?page=' + encodeURIComponent(page);
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_top';
+    link.rel = 'noopener';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   };
 
   function applyLeaderboardDashboard(){
     if (!window.PLTT) return;
+
+    const originalSetupNavigation = window.PLTT.setupNavigation;
+    window.PLTT.setupNavigation = function(){
+      document.querySelectorAll('.app-nav-item').forEach(button => {
+        if (button.dataset.plttBound === '1') return;
+        if (button.dataset.view === 'weekly-leaderboard' || button.dataset.view === 'season-leaderboard') return;
+        button.dataset.plttBound = '1';
+        button.addEventListener('click', () => this.showAppView(button.dataset.view));
+      });
+    };
 
     window.PLTT.dashboardMarkup = function(){
       const player = this.currentPlayer || {};
