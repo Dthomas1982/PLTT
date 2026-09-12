@@ -30,9 +30,39 @@
 <?!= include('Payment'); ?>
 <script>
 (function(window, document){
+  function normalizeAppNavigation(){
+    const nav = document.querySelector('.app-nav');
+    if (!nav) return;
+    const requiredOrder = ['dashboard','predictions','history','weekly-leaderboard','season-leaderboard','fixtures','player-selection','rules','payment','social'];
+    const buttons = Array.from(nav.querySelectorAll('.app-nav-item'));
+    const byView = {};
+    buttons.forEach(function(button){
+      const view = String(button.dataset.view || '').trim();
+      if (!view) { button.remove(); return; }
+      if (byView[view]) { button.remove(); return; }
+      byView[view] = button;
+    });
+    requiredOrder.forEach(function(view){
+      if (byView[view]) nav.appendChild(byView[view]);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', normalizeAppNavigation);
+  } else {
+    normalizeAppNavigation();
+  }
+
+  const nav = document.querySelector('.app-nav');
+  if (nav && typeof MutationObserver !== 'undefined') {
+    const observer = new MutationObserver(function(){ normalizeAppNavigation(); });
+    observer.observe(nav, { childList: true });
+  }
+
   if (!window.PLTT || typeof window.PLTT.showAppView !== 'function') return;
   const originalShowAppView = window.PLTT.showAppView;
   window.PLTT.showAppView = function(view){
+    normalizeAppNavigation();
     if (view === 'player-selection') {
       const title = document.getElementById('appPageTitle');
       const content = document.getElementById('appContent');
