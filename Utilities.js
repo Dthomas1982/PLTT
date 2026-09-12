@@ -1,15 +1,7 @@
 /**********************************************************************
  * PLTT Platform
  * Utilities.js
- * Version: 0.5.3
- *
- * Release:
- * - Shared utility functions
- * - Stable prediction data layer support
- * - Stable Authentication Foundation
- *
- * Status:
- * Production
+ * Version: 0.5.4
  **********************************************************************/
 
 function getWorkbook() {
@@ -17,40 +9,21 @@ function getWorkbook() {
 }
 
 function getSheet(sheetName) {
-
   const sheet = getWorkbook().getSheetByName(sheetName);
-
-  if (!sheet) {
-    throw new Error("Sheet not found: " + sheetName);
-  }
-
+  if (!sheet) throw new Error("Sheet not found: " + sheetName);
   return sheet;
 }
 
 function getCurrentTimestamp() {
-
-  return Utilities.formatDate(
-    new Date(),
-    APP.TIMEZONE,
-    "yyyy-MM-dd HH:mm:ss"
-  );
+  return Utilities.formatDate(new Date(), APP.TIMEZONE, "yyyy-MM-dd HH:mm:ss");
 }
 
 function successResponse(message, data) {
-
-  return {
-    success: true,
-    message: message,
-    data: data || null
-  };
+  return { success: true, message: message, data: data || null };
 }
 
 function errorResponse(message) {
-
-  return {
-    success: false,
-    message: message
-  };
+  return { success: false, message: message };
 }
 
 function cleanPlayerCode(code) {
@@ -70,56 +43,26 @@ function isValidMobile(number) {
 }
 
 function generateNextId(sheetName, prefix) {
-
   const sheet = getSheet(sheetName);
   const lastRow = sheet.getLastRow();
-
-  if (lastRow <= 1) {
-    return prefix + "0001";
-  }
-
-  const ids = sheet
-    .getRange(2, 1, lastRow - 1, 1)
-    .getValues()
-    .flat();
-
+  if (lastRow <= 1) return prefix + "0001";
+  const ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues().flat();
   let highest = 0;
-
   ids.forEach(function(id) {
-
-    const n = parseInt(
-      String(id).replace(prefix, ""),
-      10
-    );
-
-    if (!isNaN(n) && n > highest) {
-      highest = n;
-    }
+    const n = parseInt(String(id).replace(prefix, ""), 10);
+    if (!isNaN(n) && n > highest) highest = n;
   });
-
   return prefix + String(highest + 1).padStart(4, "0");
 }
 
 function findRow(sheetName, column, value) {
-
   const sheet = getSheet(sheetName);
   const lastRow = sheet.getLastRow();
-
-  if (lastRow <= 1) {
-    return -1;
-  }
-
-  const values = sheet
-    .getRange(2, column, lastRow - 1, 1)
-    .getValues();
-
+  if (lastRow <= 1) return -1;
+  const values = sheet.getRange(2, column, lastRow - 1, 1).getValues();
   for (let i = 0; i < values.length; i++) {
-
-    if (String(values[i][0]) === String(value)) {
-      return i + 2;
-    }
+    if (String(values[i][0]) === String(value)) return i + 2;
   }
-
   return -1;
 }
 
@@ -128,18 +71,24 @@ function valueExists(sheetName, column, value) {
 }
 
 function logAction(feature, action, player, details) {
-
   getSheet(SHEETS.LOGS).appendRow([
-    getCurrentTimestamp(),
-    feature,
-    action,
-    player,
-    details
+    getCurrentTimestamp(), feature, action, player, details
   ]);
 }
 
+/**
+ * Convert a fixture score cell into a numeric score or null.
+ * Shared by leaderboard and selection-history scoring.
+ */
+function toScore_(value) {
+  if (value === '' || value === null || value === undefined) return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  const text = String(value).trim();
+  if (!text) return null;
+  const number = Number(text);
+  return Number.isFinite(number) ? number : null;
+}
+
 function include(filename) {
-  return HtmlService
-    .createHtmlOutputFromFile(filename)
-    .getContent();
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
