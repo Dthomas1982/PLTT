@@ -1,13 +1,14 @@
 /**********************************************************************
  * PLTT Platform
  * Payments.js
- * Version: 0.6.1
+ * Version: 0.6.2
  *
  * Release:
  * - Automatic payment record creation on prediction submission
  * - Duplicate-safe Gameweek payment records
  * - DisplayName support
  * - £10 entry allocation and fee calculation
+ * - Repair missing payment records for genuine submissions
  *
  * Status:
  * Production
@@ -169,6 +170,101 @@ function setPaymentValue(row, headers, name, value) {
   if (index !== -1) {
     row[index] = value;
   }
+}
+
+/**
+ * Repairs missing payment records for a Gameweek without changing the
+ * player's prediction submission. Payment records are bookkeeping only.
+ *
+ * Run once for the affected Gameweek, for example:
+ *   repairMissingPaymentRecordsForGameweek("GW04");
+ */
+function repairMissingPaymentRecordsForGameweek(gameweekID) {
+
+  gameweekID = String(gameweekID || "").trim();
+  if (!gameweekID) throw new Error("GameweekID is required.");
+
+  const predictionSheet = getSheet(SHEETS.PREDICTIONSETS);
+  const predictionLastRow = predictionSheet.getLastRow();
+  const predictionLastColumn = predictionSheet.getLastColumn();
+
+  if (predictionLastRow <= 1 || predictionLastColumn <= 0) {
+    return { gameweekID: gameweekID, repaired: 0, skipped: 0 };
+  }
+
+  const headers = predictionSheet.getRange(1, 1, 1, predictionLastColumn).getValues()[0];
+  const values = predictionSheet.getRange(2, 1, predictionLastRow - 1, predictionLastColumn).getValues();
+  const index = buildHeaderIndex(headers);
+
+  ['predictionsetid', 'playerid', 'gameweekid'].forEach(function(key) {
+    if (index[key] === undefined) {
+      throw new Error('PredictionSets sheet must contain a ' + key + ' column.');
+    }
+  });
+
+  const submittedIndex = index.submitted;
+  const currentIndex = index.current;
+  const candidates = {};
+
+  values.forEach(function(row) {
+    const setID = String(row[index.predictionsetid] || '').trim();
+    const playerID = String(row[index.playerid] || '').trim();
+    const gwID = String(row[index.gameweekid] || '').trim();
+    if (!setID || !playerID || gwID !== gameweekID) return;
+
+    const submitted = submittedIndex !== undefined && gwBoardBool(row[submittedIndex]);
+    const current = currentIndex === undefined || gwBoardBool(row[currentIndex]);
+    if (!candidates[playerID]) candidates[playerID] = [];
+    candidates[playerID].push({setID: setID, submitted: submitted, current: current});
+  });
+
+  const repaired = [];
+  const skipped = [];
+
+  Object.keys(candidates).forEach(function(playerID) {
+    const sets = candidates[playerID];
+    const valid = sets.filter(function(set) {
+      if (set.submitted) return true;
+      const items = getPredictionItems(set.setID);
+      return items.length > 0;
+    });
+
+    if (!valid.length) {
+      skipped.push(playerID);
+      return;
+    }
+
+    valid.sort(function(a, b) {
+      if (a.current !== b.current) return a.current ? -1 : 1;
+      if (a.submitted !== b.submitted) return a.submitted ? -1 : 1;
+      return 0;
+    });
+
+    const selected = valid[0];
+
+    try {
+      const payment = createPaymentRecordForSubmission(
+        playerID,
+        gameweekID,
+        selected.setID
+      );
+      if (payment.created) repaired.push({
+        playerID: playerID,
+        predictionSetID: selected.setID,
+        paymentID: payment.paymentID
+      });
+    } catch (err) {
+      skipped.push(playerID + ': ' + err.message);
+    }
+  });
+
+  return {
+    gameweekID: gameweekID,
+    repaired: repaired.length,
+    skipped: skipped.length,
+    records: repaired,
+    skippedPlayers: skipped
+  };
 }
 
 function testPaymentRecordCreation() {
