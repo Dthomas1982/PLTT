@@ -45,9 +45,6 @@ function getAuthoritativePublicGameweek() {
         gameweekID: id,
         startDate: start,
         status: index.status !== undefined ? String(row[index.status] || '').trim() : '',
-        // Use the raw spreadsheet Date first. getDisplayValues() is locale-formatted
-        // and can turn 9/12/2026 into either 9 December or 12 September depending
-        // on locale, so it must never override a valid Date object from getValues().
         deadline: deadline,
         deadlineDisplay: String(displayDeadline || '').trim()
       };
@@ -66,7 +63,6 @@ function parseGameweekBoardDate_(value) {
   const text = String(value).trim();
   if (!text) return null;
 
-  // Explicit UK parsing for text values such as 28/08/2026 20:00:00.
   const uk = text.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
   if (uk) {
     const day = Number(uk[1]);
@@ -149,10 +145,23 @@ function getGWBoardSubmissionMap(gameweekID) {
     if (!setID || !playerID || gwID !== String(gameweekID).trim()) return;
 
     const submitted = index.submitted !== undefined && gwBoardBool(row[index.submitted]);
+    if (!submitted) return;
+
     const current = index.current === undefined || gwBoardBool(row[index.current]);
-    if (!current || !submitted) return;
-    result[playerID] = setID;
+    const existing = result[playerID];
+
+    // Prefer the current submitted set. If a player's current flag is stale
+    // or missing, retain the latest submitted set so the public submission
+    // count still reflects an actual successful submission.
+    if (!existing || current || !existing.current) {
+      result[playerID] = { setID: setID, current: current };
+    }
   });
+
+  Object.keys(result).forEach(function(playerID) {
+    result[playerID] = result[playerID].setID;
+  });
+
   return result;
 }
 
@@ -162,8 +171,6 @@ function getGameweekPredictionBoard() {
     if (!gameweek) return errorResponse('No Gameweek is currently in play.');
     if (!gameweek.deadline) return errorResponse('No valid deadline is configured for ' + gameweek.gameweekID + '.');
 
-    // Deadline is authoritative. Status is deliberately NOT used to decide
-    // whether predictions are visible.
     const now = new Date();
     const deadlinePassed = isGameweekDeadlinePassed_(gameweek.deadline, now);
     const fixtures = getGameweekFixturesByID(gameweek.gameweekID);
@@ -232,7 +239,9 @@ function getGameweekPredictionBoard() {
       deadline: gameweek.deadline.toISOString(),
       deadlineDisplay: gameweek.deadlineDisplay,
       serverNow: now.toISOString(),
-      fixtures: deadlinePassed ? fixtures : [],
+      // Fixtures are public for the current Gameweek even before the deadline.
+      // Predictions remain hidden until the deadline has passed.
+      fixtures: fixtures,
       players: playerList,
       submissionCount: players.length
     });
