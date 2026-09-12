@@ -1,9 +1,10 @@
 /**********************************************************************
  * PLTT Platform
  * Leaderboard.js
- * Version: 0.7.1
+ * Version: 0.8.0
  *
  * Weekly scoring engine + public weekly/season leaderboard data.
+ * Weekly and season standings are stored separately.
  * Scoring: Exact 10 | Margin 5 | Result 2.
  * Display counts are mutually exclusive: an exact is only Exact,
  * a correct margin is only Margin, and a result-only prediction is Result.
@@ -21,7 +22,6 @@ function recalculateLeaderboard() {
   try {
     const scorableGameweeks = getScorableGameweeks_();
     const players = getActivePlayersForLeaderboard_();
-    const previousRanks = getPreviousLeaderboardRanks_();
     const totals = {};
 
     players.forEach(function(player) {
@@ -38,8 +38,9 @@ function recalculateLeaderboard() {
     });
 
     let latestScoredGameweek = '';
+    let previousRanks = {};
 
-    scorableGameweeks.forEach(function(gameweek) {
+    scorableGameweeks.forEach(function(gameweek, gameweekIndex) {
       latestScoredGameweek = gameweek.gameweekID;
       const fixtureMap = {};
       gameweek.fixtures.forEach(function(fixture) {
@@ -64,6 +65,10 @@ function recalculateLeaderboard() {
         total.results += week.results;
         total.lastWeek = week.points;
       });
+
+      if (gameweekIndex === scorableGameweeks.length - 2) {
+        previousRanks = rankTotals_(totals);
+      }
     });
 
     const rows = Object.keys(totals).map(function(playerID) {
@@ -73,16 +78,13 @@ function recalculateLeaderboard() {
       return a.player.localeCompare(b.player);
     });
 
-    let lastPoints = null;
-    let currentPosition = 0;
-    rows.forEach(function(row, index) {
-      if (lastPoints === null || row.points !== lastPoints) currentPosition = index + 1;
-      row.position = currentPosition;
-      row.movement = formatMovement_(previousRanks[row.player], currentPosition);
-      lastPoints = row.points;
+    assignPositions_(rows);
+
+    rows.forEach(function(row) {
+      row.movement = formatMovement_(previousRanks[row.player], row.position);
     });
 
-    writeLeaderboardSheet_(rows);
+    writeSeasonLeaderboardSheet_(rows);
     syncPlayerSeasonSummary_(rows);
 
     return {
@@ -98,39 +100,24 @@ function recalculateLeaderboard() {
   }
 }
 
-function getLeaderboardData() {
-  const sheet = getSheet(SHEETS.LEADERBOARD);
-  const lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return [];
-
-  return sheet.getRange(2, 1, lastRow - 1, 9).getValues()
-    .filter(function(row) { return String(row[1] || '').trim() !== ''; })
-    .map(function(row) {
-      return {
-        position: Number(row[0] || 0),
-        player: String(row[1] || ''),
-        played: Number(row[2] || 0),
-        points: Number(row[3] || 0),
-        exact: Number(row[4] || 0),
-        margins: Number(row[5] || 0),
-        results: Number(row[6] || 0),
-        lastWeek: Number(row[7] || 0),
-        movement: String(row[8] || '')
-      };
-    });
+function getSeasonLeaderboardData() {
+  const sheet = getSheet(SHEETS.SEASONLEADERBOARD);
+  return readLeaderboardSheet_(sheet).filter(function(row) {
+    return row.played > 0;
+  });
 }
 
 function getSeasonLeaderboardPageData() {
   recalculateLeaderboard();
-  const rows = getLeaderboardData().filter(function(row) { return row.played > 0; });
   return {
     season: getCurrentSeason(),
     competitionName: getCompetitionName(),
-    rows: rows
+    rows: getSeasonLeaderboardData()
   };
 }
 
 function getWeeklyLeaderboardPageData(gameweekID) {
+  const availableGameweeks = getScorableGameweeks_();
   const requested = String(gameweekID || '').trim();
   const resolved = requested || resolveAuthoritativeGameweekID();
   const group = getLeaderboardGameweek_(resolved);
@@ -144,12 +131,15 @@ function getWeeklyLeaderboardPageData(gameweekID) {
       competitionName: getCompetitionName(),
       fixturesCompleted: 0,
       fixturesTotal: 0,
+      availableGameweeks: availableGameweeks.map(function(gameweek) { return gameweek.gameweekID; }),
       rows: []
     };
   }
 
   const fixtureMap = {};
-  group.fixtures.forEach(function(fixture) { fixtureMap[fixture.matchID] = fixture; });
+  group.fixtures.forEach(function(fixture) {
+    fixtureMap[fixture.matchID] = fixture;
+  });
 
   players.forEach(function(player) {
     const predictionSet = getPlayerPredictionSet(player.playerID, resolved);
@@ -178,13 +168,9 @@ function getWeeklyLeaderboardPageData(gameweekID) {
     return a.player.localeCompare(b.player);
   });
 
-  let lastPoints = null;
-  let position = 0;
-  rows.forEach(function(row, index) {
-    if (lastPoints === null || row.points !== lastPoints) position = index + 1;
-    row.position = position;
-    lastPoints = row.points;
-  });
+  assignPositions_(rows);
+
+  writeWeeklyLeaderboardSheet_(rows);
 
   return {
     gameweekID: resolved,
@@ -192,6 +178,7 @@ function getWeeklyLeaderboardPageData(gameweekID) {
     competitionName: getCompetitionName(),
     fixturesCompleted: group.fixtures.length,
     fixturesTotal: group.allFixtures.length,
+    availableGameweeks: availableGameweeks.map(function(gameweek) { return gameweek.gameweekID; }),
     rows: rows
   };
 }
@@ -214,7 +201,9 @@ function getScorableGameweeks_() {
   values.forEach(function(row) {
     const gameweekID = String(row[index.gameweekid] || '').trim();
     if (!gameweekID) return;
-    if (!groups[gameweekID]) groups[gameweekID] = { gameweekID: gameweekID, allFixtures: [], fixtures: [] };
+    if (!groups[gameweekID]) {
+      groups[gameweekID] = { gameweekID: gameweekID, allFixtures: [], fixtures: [] };
+    }
 
     const fixture = {
       matchID: String(row[index.matchid] || '').trim(),
@@ -223,15 +212,20 @@ function getScorableGameweeks_() {
       homeGoals: toScore_(row[index.homegoals]),
       awayGoals: toScore_(row[index.awaygoals])
     };
+
     groups[gameweekID].allFixtures.push(fixture);
-    if (fixture.status.toLowerCase() === 'completed' && fixture.homeGoals !== null && fixture.awayGoals !== null) {
+    if (fixture.status.toLowerCase() === 'completed' &&
+        fixture.homeGoals !== null && fixture.awayGoals !== null) {
       groups[gameweekID].fixtures.push(fixture);
     }
   });
 
-  return Object.keys(groups).map(function(id) { return groups[id]; })
+  return Object.keys(groups)
+    .map(function(id) { return groups[id]; })
     .filter(function(gameweek) { return gameweek.fixtures.length > 0; })
-    .sort(function(a, b) { return getEarliestFixtureDate_(a.allFixtures) - getEarliestFixtureDate_(b.allFixtures); });
+    .sort(function(a, b) {
+      return getEarliestFixtureDate_(a.allFixtures) - getEarliestFixtureDate_(b.allFixtures);
+    });
 }
 
 function getLeaderboardGameweek_(gameweekID) {
@@ -258,7 +252,8 @@ function getLeaderboardGameweek_(gameweekID) {
       awayGoals: toScore_(row[index.awaygoals])
     };
     group.allFixtures.push(fixture);
-    if (fixture.status.toLowerCase() === 'completed' && fixture.homeGoals !== null && fixture.awayGoals !== null) {
+    if (fixture.status.toLowerCase() === 'completed' &&
+        fixture.homeGoals !== null && fixture.awayGoals !== null) {
       group.fixtures.push(fixture);
     }
   });
@@ -283,20 +278,100 @@ function getActivePlayersForLeaderboard_() {
     .filter(function(row) {
       return String(row[0] || '').trim() !== '' && String(row[2] || '').trim() !== '' && Boolean(row[5]) === true;
     })
-    .map(function(row) { return { playerID: String(row[0]).trim(), displayName: String(row[2]).trim() }; });
+    .map(function(row) {
+      return { playerID: String(row[0]).trim(), displayName: String(row[2]).trim() };
+    });
 }
 
-function getPreviousLeaderboardRanks_() {
-  const sheet = getSheet(SHEETS.LEADERBOARD);
-  const lastRow = sheet.getLastRow();
+function rankTotals_(totals) {
+  const rows = Object.keys(totals).map(function(playerID) {
+    return totals[playerID];
+  }).sort(function(a, b) {
+    if (b.points !== a.points) return b.points - a.points;
+    return a.player.localeCompare(b.player);
+  });
+
   const ranks = {};
-  if (lastRow <= 1) return ranks;
-  sheet.getRange(2, 1, lastRow - 1, 2).getValues().forEach(function(row) {
-    const position = Number(row[0] || 0);
-    const player = String(row[1] || '').trim();
-    if (position > 0 && player) ranks[player] = position;
+  let lastPoints = null;
+  let position = 0;
+  rows.forEach(function(row, index) {
+    if (lastPoints === null || row.points !== lastPoints) position = index + 1;
+    ranks[row.player] = position;
+    lastPoints = row.points;
   });
   return ranks;
+}
+
+function assignPositions_(rows) {
+  let lastPoints = null;
+  let position = 0;
+  rows.forEach(function(row, index) {
+    if (lastPoints === null || row.points !== lastPoints) position = index + 1;
+    row.position = position;
+    lastPoints = row.points;
+  });
+}
+
+function readLeaderboardSheet_(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return [];
+
+  return sheet.getRange(2, 1, lastRow - 1, 9).getValues()
+    .filter(function(row) { return String(row[1] || '').trim() !== ''; })
+    .map(function(row) {
+      return {
+        position: Number(row[0] || 0),
+        player: String(row[1] || ''),
+        played: Number(row[2] || 0),
+        points: Number(row[3] || 0),
+        exact: Number(row[4] || 0),
+        margins: Number(row[5] || 0),
+        results: Number(row[6] || 0),
+        lastWeek: Number(row[7] || 0),
+        movement: String(row[8] || '')
+      };
+    });
+}
+
+function writeSeasonLeaderboardSheet_(rows) {
+  const sheet = getSheet(SHEETS.SEASONLEADERBOARD);
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, 9).clearContent();
+  if (!rows.length) return;
+  sheet.getRange(2, 1, rows.length, 9).setValues(rows.map(function(row) {
+    return [row.position, row.player, row.played, row.points, row.exact, row.margins, row.results, row.lastWeek, row.movement];
+  }));
+}
+
+function writeWeeklyLeaderboardSheet_(rows) {
+  const sheet = getSheet(SHEETS.WEEKLYLEADERBOARD);
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, 9).clearContent();
+  if (!rows.length) return;
+  sheet.getRange(2, 1, rows.length, 9).setValues(rows.map(function(row) {
+    return [row.position, row.player, row.played, row.points, row.exact, row.margins, row.results, row.lastWeek, row.movement];
+  }));
+}
+
+function syncPlayerSeasonSummary_(rows) {
+  const sheet = getSheet(SHEETS.PLAYERS);
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return;
+  const values = sheet.getRange(2, 1, lastRow - 1, 10).getValues();
+  const byName = {};
+  rows.forEach(function(row) { byName[row.player] = row; });
+  values.forEach(function(row, index) {
+    const displayName = String(row[2] || '').trim();
+    const calculated = byName[displayName];
+    if (!calculated) return;
+    sheet.getRange(index + 2, 8, 1, 3).setValues([[calculated.points, calculated.position, calculated.played]]);
+  });
+}
+
+function formatMovement_(previousPosition, currentPosition) {
+  if (!previousPosition || previousPosition === currentPosition) return '—';
+  const movement = previousPosition - currentPosition;
+  return movement > 0 ? '↑ ' + movement : '↓ ' + Math.abs(movement);
 }
 
 function scorePredictionSet_(items, fixtureMap) {
@@ -319,7 +394,6 @@ function scorePredictionSet_(items, fixtureMap) {
     if (getResultSign_(predictedHome, predictedAway) === getResultSign_(actualHome, actualAway)) {
       const predictedMargin = Math.abs(predictedHome - predictedAway);
       const actualMargin = Math.abs(actualHome - actualAway);
-
       if (predictedMargin === actualMargin) {
         score.points += LEADERBOARD_POINTS.MARGIN;
         score.margins += 1;
@@ -359,46 +433,4 @@ function setPredictionSetSubmitted_(predictionSetID, submitted) {
       return;
     }
   }
-}
-
-function writeLeaderboardSheet_(rows) {
-  const sheet = getSheet(SHEETS.LEADERBOARD);
-  const lastRow = sheet.getLastRow();
-  if (lastRow > 1) sheet.getRange(2, 1, lastRow - 1, 9).clearContent();
-  if (!rows.length) return;
-  sheet.getRange(2, 1, rows.length, 9).setValues(rows.map(function(row) {
-    return [row.position, row.player, row.played, row.points, row.exact, row.margins, row.results, row.lastWeek, row.movement];
-  }));
-}
-
-function syncPlayerSeasonSummary_(rows) {
-  const sheet = getSheet(SHEETS.PLAYERS);
-  const lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return;
-  const values = sheet.getRange(2, 1, lastRow - 1, 10).getValues();
-  const byName = {};
-  rows.forEach(function(row) { byName[row.player] = row; });
-  values.forEach(function(row, index) {
-    const displayName = String(row[2] || '').trim();
-    const calculated = byName[displayName];
-    if (!calculated) return;
-    sheet.getRange(index + 2, 8, 1, 3).setValues([[calculated.points, calculated.position, calculated.played]]);
-  });
-}
-
-function formatMovement_(previousPosition, currentPosition) {
-  if (!previousPosition || previousPosition === currentPosition) return '—';
-  const movement = previousPosition - currentPosition;
-  return movement > 0 ? '↑ ' + movement : '↓ ' + Math.abs(movement);
-}
-
-function toScore_(value) {
-  if (value === '' || value === null || value === undefined) return null;
-  const number = Number(value);
-  if (!Number.isInteger(number) || number < 0) return null;
-  return number;
-}
-
-function testLeaderboardScoring() {
-  return recalculateLeaderboard();
 }
