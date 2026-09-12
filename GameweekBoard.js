@@ -5,6 +5,12 @@
  * Public Gameweek prediction board.
  * StartDate selects the current Gameweek.
  * Deadline in the Gameweeks sheet is the authoritative lock time.
+ *
+ * Release fix:
+ * - Show fixtures for the active Gameweek.
+ * - Reveal predictions once the deadline has passed OR a fixture is live.
+ * - Count genuine submitted prediction sets independently of Payments.
+ * - Recover submitted sets whose Current flag is stale.
  **********************************************************************/
 
 function getAuthoritativePublicGameweek() {
@@ -138,6 +144,11 @@ function getGWBoardSubmissionMap(gameweekID) {
     throw new Error('PredictionSets sheet must contain PredictionSetID, PlayerID and GameweekID columns.');
   }
 
+  // First identify candidate sets. A submitted set is authoritative even if
+  // Current was not maintained correctly. If Submitted is also stale, a set
+  // with saved prediction items is still a genuine submission and should not
+  // disappear simply because its payment record is missing.
+  const candidates = {};
   values.forEach(function(row) {
     const setID = String(row[index.predictionsetid] || '').trim();
     const playerID = String(row[index.playerid] || '').trim();
@@ -145,24 +156,52 @@ function getGWBoardSubmissionMap(gameweekID) {
     if (!setID || !playerID || gwID !== String(gameweekID).trim()) return;
 
     const submitted = index.submitted !== undefined && gwBoardBool(row[index.submitted]);
-    if (!submitted) return;
-
     const current = index.current === undefined || gwBoardBool(row[index.current]);
-    const existing = result[playerID];
-
-    // Prefer the current submitted set. If a player's current flag is stale
-    // or missing, retain the latest submitted set so the public submission
-    // count still reflects an actual successful submission.
-    if (!existing || current || !existing.current) {
-      result[playerID] = { setID: setID, current: current };
-    }
+    if (!candidates[playerID]) candidates[playerID] = [];
+    candidates[playerID].push({setID: setID, submitted: submitted, current: current});
   });
 
-  Object.keys(result).forEach(function(playerID) {
-    result[playerID] = result[playerID].setID;
+  // Use PredictionItems to confirm a saved prediction set where Submitted is
+  // stale. This deliberately does not consult Payments: payment bookkeeping
+  // must never decide whether a player's football prediction was submitted.
+  const itemCounts = {};
+  const itemSheet = getSheet(SHEETS.PREDICTIONITEMS);
+  const itemLastRow = itemSheet.getLastRow();
+  const itemLastColumn = itemSheet.getLastColumn();
+  if (itemLastRow > 1 && itemLastColumn > 0) {
+    const itemHeaders = itemSheet.getRange(1, 1, 1, itemLastColumn).getValues()[0];
+    const itemValues = itemSheet.getRange(2, 1, itemLastRow - 1, itemLastColumn).getValues();
+    const itemIndex = buildHeaderIndex(itemHeaders);
+    if (itemIndex.predictionsetid !== undefined) {
+      itemValues.forEach(function(row) {
+        const setID = String(row[itemIndex.predictionsetid] || '').trim();
+        if (setID) itemCounts[setID] = (itemCounts[setID] || 0) + 1;
+      });
+    }
+  }
+
+  Object.keys(candidates).forEach(function(playerID) {
+    const sets = candidates[playerID];
+    const valid = sets.filter(function(set) {
+      return set.submitted || itemCounts[set.setID] > 0;
+    });
+    if (!valid.length) return;
+
+    // Prefer current, then submitted, then the latest set in sheet order.
+    valid.sort(function(a, b) {
+      if (a.current !== b.current) return a.current ? -1 : 1;
+      if (a.submitted !== b.submitted) return a.submitted ? -1 : 1;
+      return 0;
+    });
+    result[playerID] = valid[0].setID;
   });
 
   return result;
+}
+
+function isFixtureInPlay_(fixture) {
+  const status = String(fixture && fixture.status || '').trim().toLowerCase();
+  return ['live', 'in play', 'in progress', 'playing', 'half time', 'ht', 'completed', 'complete', 'finished', 'full time', 'ft'].indexOf(status) !== -1;
 }
 
 function getGameweekPredictionBoard() {
@@ -172,9 +211,15 @@ function getGameweekPredictionBoard() {
     if (!gameweek.deadline) return errorResponse('No valid deadline is configured for ' + gameweek.gameweekID + '.');
 
     const now = new Date();
-    const deadlinePassed = isGameweekDeadlinePassed_(gameweek.deadline, now);
     const fixtures = getGameweekFixturesByID(gameweek.gameweekID);
     const submitted = getGWBoardSubmissionMap(gameweek.gameweekID);
+
+    // The deadline remains authoritative, but once a fixture is actually live
+    // or completed the prediction board must be locked regardless of a stale
+    // spreadsheet deadline. This prevents predictions remaining hidden while
+    // matches are already being played.
+    const fixtureInPlay = fixtures.some(isFixtureInPlay_);
+    const deadlinePassed = isGameweekDeadlinePassed_(gameweek.deadline, now) || fixtureInPlay;
 
     const playersSheet = getSheet(SHEETS.PLAYERS);
     const playerLastRow = playersSheet.getLastRow();
@@ -239,8 +284,6 @@ function getGameweekPredictionBoard() {
       deadline: gameweek.deadline.toISOString(),
       deadlineDisplay: gameweek.deadlineDisplay,
       serverNow: now.toISOString(),
-      // Fixtures are public for the current Gameweek even before the deadline.
-      // Predictions remain hidden until the deadline has passed.
       fixtures: fixtures,
       players: playerList,
       submissionCount: players.length
