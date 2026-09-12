@@ -1,0 +1,80 @@
+<script>
+(function(window, document){
+  'use strict';
+  if (!window.PLTT) return;
+  const PLTT = window.PLTT;
+
+  function showLoading(){
+    const content = document.getElementById('appContent');
+    if (content) content.innerHTML = '<section class="selection-history"><article class="history-loading">Loading selection history...</article></section>';
+  }
+
+  function loadFiltered(playerID, gameweekID){
+    showLoading();
+    google.script.run
+      .withSuccessHandler(function(result){
+        if (!result || result.success !== true || !result.data) {
+          const content = document.getElementById('appContent');
+          if (content) content.innerHTML = '<section class="selection-history"><article class="app-card"><h2>Unable to load history</h2><p>' + PLTT.escapeHtml(result && result.message ? result.message : 'Unable to load selection history.') + '</p></article></section>';
+          return;
+        }
+        PLTT.renderSelectionHistory(result.data);
+      })
+      .withFailureHandler(function(error){
+        const content = document.getElementById('appContent');
+        if (content) content.innerHTML = '<section class="selection-history"><article class="app-card"><h2>Unable to load history</h2><p>' + PLTT.escapeHtml(error && error.message ? error.message : 'Unable to load selection history.') + '</p></article></section>';
+      })
+      .getSelectionHistoryFiltered(playerID || '', gameweekID || '');
+  }
+
+  PLTT.loadSelectionHistory = function(playerID, gameweekID){
+    const currentPlayerID = this.currentPlayer && this.currentPlayer.playerID ? this.currentPlayer.playerID : '';
+    if (!currentPlayerID) {
+      const content = document.getElementById('appContent');
+      if (content) content.innerHTML = '<section class="selection-history"><article class="app-card"><h2>Please log in first.</h2></article></section>';
+      return;
+    }
+
+    const hasPlayerFilter = String(playerID || '').trim() !== '';
+    const hasGameweekFilter = String(gameweekID || '').trim() !== '';
+
+    if (!hasPlayerFilter && !hasGameweekFilter) {
+      showLoading();
+      google.script.run
+        .withSuccessHandler(function(result){
+          if (!result || result.success !== true || !result.data) {
+            const content = document.getElementById('appContent');
+            if (content) content.innerHTML = '<section class="selection-history"><article class="app-card"><h2>Unable to load history</h2><p>' + PLTT.escapeHtml(result && result.message ? result.message : 'Unable to load selection history.') + '</p></article></section>';
+            return;
+          }
+          PLTT.renderSelectionHistory(result.data);
+        })
+        .withFailureHandler(function(error){
+          const content = document.getElementById('appContent');
+          if (content) content.innerHTML = '<section class="selection-history"><article class="app-card"><h2>Unable to load history</h2><p>' + PLTT.escapeHtml(error && error.message ? error.message : 'Unable to load selection history.') + '</p></article></section>';
+        })
+        .getSelectionHistoryCurrent(currentPlayerID);
+      return;
+    }
+
+    loadFiltered(playerID, gameweekID);
+  };
+
+  const previousShowAppView = PLTT.showAppView.bind(PLTT);
+  PLTT.showAppView = function(view){
+    if (view !== 'history') return previousShowAppView(view);
+    const title = document.getElementById('appPageTitle');
+    const content = document.getElementById('appContent');
+    if (!title || !content) return;
+    document.querySelectorAll('.app-nav-item').forEach(function(button){
+      button.classList.toggle('active', button.dataset.view === view);
+    });
+    title.textContent = 'History';
+    PLTT.loadSelectionHistory();
+    if (typeof PLTT.bindDynamicActions === 'function') PLTT.bindDynamicActions();
+    requestAnimationFrame(function(){
+      if (typeof PLTT.scrollApplicationToTop === 'function') PLTT.scrollApplicationToTop();
+    });
+  };
+})(window, document);
+</script>
