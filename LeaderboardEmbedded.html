@@ -1,0 +1,196 @@
+<script>
+(function(window, document){
+  'use strict';
+
+  function addStyles(){
+    if (document.getElementById('plttEmbeddedLeaderboardStyles')) return;
+    const style = document.createElement('style');
+    style.id = 'plttEmbeddedLeaderboardStyles';
+    style.textContent = `
+      .pltt-lb-wrap{width:100%;}
+      .pltt-lb-header{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:18px;}
+      .pltt-lb-header h2{margin:4px 0 5px;font-size:clamp(26px,4vw,38px);line-height:1.05;}
+      .pltt-lb-header p{margin:0;color:var(--muted,#9ca9bf);}
+      .pltt-lb-switch{display:flex;gap:8px;flex-shrink:0;}
+      .pltt-lb-switch button{border:1px solid rgba(255,255,255,.12);background:transparent;color:#cfd6e7;border-radius:11px;padding:10px 14px;font-weight:800;cursor:pointer;}
+      .pltt-lb-switch button.active{background:linear-gradient(135deg,#9878ff,#7653ed);border-color:transparent;color:#fff;}
+      .pltt-lb-selector{max-width:230px;margin-bottom:16px;}
+      .pltt-lb-selector label{display:block;color:var(--muted,#9ca9bf);font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;margin-bottom:7px;}
+      .pltt-lb-selector select{width:100%;padding:11px 13px;border:1px solid rgba(255,255,255,.12);border-radius:11px;background:#0b0f18;color:#f7f8fb;font-weight:800;}
+      .pltt-lb-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px;}
+      .pltt-lb-stat{padding:16px;border:1px solid rgba(155,124,255,.25);border-radius:16px;background:linear-gradient(135deg,#111226,#0a0e17);}
+      .pltt-lb-stat strong{display:block;font-size:23px;line-height:1.1;}
+      .pltt-lb-stat span{display:block;color:var(--muted,#9ca9bf);font-size:11px;margin-top:5px;}
+      .pltt-lb-table-card{background:#0b0f18;border:1px solid rgba(255,255,255,.10);border-radius:18px;overflow:hidden;}
+      .pltt-lb-table{width:100%;border-collapse:collapse;}
+      .pltt-lb-table th{padding:13px 14px;text-align:left;color:#8f9bb1;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;background:rgba(255,255,255,.025);}
+      .pltt-lb-table th.num,.pltt-lb-table td.num{text-align:center;}
+      .pltt-lb-table td{padding:14px;border-top:1px solid rgba(255,255,255,.08);font-size:13px;}
+      .pltt-lb-table tbody tr:first-child td{background:rgba(155,124,255,.055);}
+      .pltt-lb-pos{font-weight:900;white-space:nowrap;}
+      .pltt-lb-player{font-weight:800;}
+      .pltt-lb-points{font-size:17px;font-weight:900;}
+      .pltt-lb-muted{color:var(--muted,#9ca9bf);}
+      .pltt-lb-empty{padding:38px 18px!important;text-align:center;color:var(--muted,#9ca9bf);}
+      .pltt-lb-error{padding:15px;border-radius:13px;color:#ffb0bd;background:#251019;border:1px solid rgba(255,100,130,.25);margin-bottom:16px;}
+      .pltt-lb-loading{opacity:.72;}
+      @media(max-width:700px){
+        .pltt-lb-header{display:block;}
+        .pltt-lb-switch{margin-top:14px;}
+        .pltt-lb-switch button{flex:1;padding:9px 8px;font-size:12px;}
+        .pltt-lb-selector{max-width:none;}
+        .pltt-lb-summary{grid-template-columns:repeat(3,1fr);gap:7px;}
+        .pltt-lb-stat{padding:12px 9px;}
+        .pltt-lb-stat strong{font-size:17px;}
+        .pltt-lb-stat span{font-size:9px;line-height:1.2;}
+        .pltt-lb-table-card{background:transparent;border:0;overflow:visible;}
+        .pltt-lb-table,.pltt-lb-table tbody{display:block;}
+        .pltt-lb-table thead{display:none;}
+        .pltt-lb-table tr{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:6px;align-items:center;background:#0b0f18;border:1px solid rgba(255,255,255,.10);border-radius:14px;margin-bottom:8px;padding:11px;}
+        .pltt-lb-table td{padding:0;border:0;}
+        .pltt-lb-table td:nth-child(1){grid-column:1;grid-row:1;font-size:12px;}
+        .pltt-lb-table td:nth-child(2){grid-column:2;grid-row:1;min-width:0;}
+        .pltt-lb-table td:nth-child(3){display:none;}
+        .pltt-lb-table td:nth-child(4){grid-column:3;grid-row:1;text-align:right;}
+        .pltt-lb-table td:nth-child(5),.pltt-lb-table td:nth-child(6),.pltt-lb-table td:nth-child(7),.pltt-lb-table td:nth-child(8),.pltt-lb-table td:nth-child(9){display:none;}
+        .pltt-lb-table tr::after{content:'Exact ' attr(data-exact) '   Margin ' attr(data-margin) '   Result ' attr(data-result);grid-column:2 / 4;grid-row:2;color:var(--muted,#9ca9bf);font-size:9px;padding-top:6px;}
+        .pltt-lb-player{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .pltt-lb-points{font-size:18px;}
+      }
+      @media(max-width:380px){.pltt-lb-summary strong{font-size:16px}.pltt-lb-stat span{font-size:8px}.pltt-lb-table tr{grid-template-columns:34px minmax(0,1fr) auto;padding:10px}.pltt-lb-player{font-size:12px}}
+    `;
+    document.head.appendChild(style);
+  }
+
+  function setAppState(view, title){
+    const titleEl = document.getElementById('appPageTitle');
+    const content = document.getElementById('appContent');
+    if (!titleEl || !content) return null;
+    titleEl.textContent = title;
+    document.querySelectorAll('.app-nav-item').forEach(function(button){
+      button.classList.toggle('active', button.dataset.view === view);
+    });
+    return content;
+  }
+
+  function shell(view){
+    const content = setAppState(view, view === 'weekly-leaderboard' ? 'Weekly Leaderboard' : 'Season Leaderboard');
+    if (!content) return null;
+    content.innerHTML = `
+      <section class="pltt-lb-wrap">
+        <div class="pltt-lb-header">
+          <div><p class="season">${view === 'weekly-leaderboard' ? 'GAMEWEEK BATTLE' : 'SEASON COMPETITION'}</p><h2>${view === 'weekly-leaderboard' ? 'Weekly Leaderboard' : 'Season Leaderboard'}</h2><p id="plttLbSubtitle">Refreshing the latest standings...</p></div>
+          <div class="pltt-lb-switch" aria-label="Leaderboard navigation">
+            <button type="button" class="${view === 'weekly-leaderboard' ? 'active' : ''}" data-lb-view="weekly-leaderboard">Weekly</button>
+            <button type="button" class="${view === 'season-leaderboard' ? 'active' : ''}" data-lb-view="season-leaderboard">Season</button>
+          </div>
+        </div>
+        ${view === 'weekly-leaderboard' ? '<div class="pltt-lb-selector"><label for="plttLbGameweek">Gameweek</label><select id="plttLbGameweek"></select></div>' : ''}
+        <div id="plttLbMessage"></div>
+        <section class="pltt-lb-summary">
+          <div class="pltt-lb-stat"><strong id="plttLbStat1">—</strong><span>${view === 'weekly-leaderboard' ? 'Gameweek' : 'Players with points'}</span></div>
+          <div class="pltt-lb-stat"><strong id="plttLbStat2">—</strong><span>${view === 'weekly-leaderboard' ? 'Fixtures completed' : 'Current leader'}</span></div>
+          <div class="pltt-lb-stat"><strong id="plttLbStat3">—</strong><span>${view === 'weekly-leaderboard' ? 'Players submitted' : 'Season'}</span></div>
+        </section>
+        <section class="pltt-lb-table-card"><table class="pltt-lb-table"><thead><tr><th>Position</th><th>Player</th><th class="num">Played</th><th class="num">Points</th><th class="num">Exact</th><th class="num">Margins</th><th class="num">Results</th><th class="num">Last Week</th><th class="num">Movement</th></tr></thead><tbody id="plttLbRows"><tr><td colspan="9" class="pltt-lb-empty">Loading leaderboard...</td></tr></tbody></table></section>
+      </section>`;
+
+    content.querySelectorAll('[data-lb-view]').forEach(function(button){
+      button.addEventListener('click', function(){ window.PLTT.showAppView(button.dataset.lbView); });
+    });
+    return content;
+  }
+
+  function escapeHtml(value){
+    return String(value == null ? '' : value).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
+  }
+
+  function renderRows(rows){
+    const target = document.getElementById('plttLbRows');
+    if (!target) return;
+    rows = Array.isArray(rows) ? rows : [];
+    if (!rows.length){
+      target.innerHTML = '<tr><td colspan="9" class="pltt-lb-empty">No leaderboard data is available.</td></tr>';
+      return;
+    }
+    target.innerHTML = rows.map(function(row){
+      const medal = Number(row.position) === 1 ? '🥇' : Number(row.position) === 2 ? '🥈' : Number(row.position) === 3 ? '🥉' : '';
+      return '<tr data-exact="'+escapeHtml(row.exact)+'" data-margin="'+escapeHtml(row.margins)+'" data-result="'+escapeHtml(row.results)+'">'
+        + '<td class="pltt-lb-pos">'+medal+' '+escapeHtml(row.position)+'</td>'
+        + '<td class="pltt-lb-player">'+escapeHtml(row.player)+'</td>'
+        + '<td class="num pltt-lb-muted">'+escapeHtml(row.played)+'</td>'
+        + '<td class="num pltt-lb-points">'+escapeHtml(row.points)+'</td>'
+        + '<td class="num">'+escapeHtml(row.exact)+'</td>'
+        + '<td class="num">'+escapeHtml(row.margins)+'</td>'
+        + '<td class="num">'+escapeHtml(row.results)+'</td>'
+        + '<td class="num">'+escapeHtml(row.lastWeek)+'</td>'
+        + '<td class="num pltt-lb-muted">'+escapeHtml(row.movement)+'</td></tr>';
+    }).join('');
+  }
+
+  function renderWeekly(data){
+    const selector = document.getElementById('plttLbGameweek');
+    if (selector){
+      const weeks = Array.isArray(data.availableGameweeks) ? data.availableGameweeks : [];
+      selector.innerHTML = weeks.map(function(week){ return '<option value="'+escapeHtml(week)+'">'+escapeHtml(week)+'</option>'; }).join('');
+      if (data.gameweekID) selector.value = data.gameweekID;
+      selector.onchange = function(){ load('weekly-leaderboard', selector.value); };
+    }
+    const stat1 = document.getElementById('plttLbStat1');
+    const stat2 = document.getElementById('plttLbStat2');
+    const stat3 = document.getElementById('plttLbStat3');
+    const subtitle = document.getElementById('plttLbSubtitle');
+    if (stat1) stat1.textContent = data.gameweekID || '—';
+    if (stat2) stat2.textContent = String(data.fixturesCompleted || 0) + ' / ' + String(data.fixturesTotal || 0);
+    if (stat3) stat3.textContent = String((data.rows || []).length);
+    if (subtitle) subtitle.textContent = data.rows && data.rows.length ? 'Weekly scores from completed fixtures.' : 'No submitted predictions are available for this Gameweek.';
+    renderRows(data.rows);
+  }
+
+  function renderSeason(data){
+    const rows = Array.isArray(data.rows) ? data.rows : [];
+    const stat1 = document.getElementById('plttLbStat1');
+    const stat2 = document.getElementById('plttLbStat2');
+    const stat3 = document.getElementById('plttLbStat3');
+    const subtitle = document.getElementById('plttLbSubtitle');
+    if (stat1) stat1.textContent = String(rows.length);
+    if (stat2) stat2.textContent = rows.length ? String(rows[0].player || '—') : '—';
+    if (stat3) stat3.textContent = String(data.season || '—');
+    if (subtitle) subtitle.textContent = rows.length ? 'Cumulative season standings.' : 'No season scores are available yet.';
+    renderRows(rows);
+  }
+
+  function fail(error){
+    const message = document.getElementById('plttLbMessage');
+    if (message) message.innerHTML = '<div class="pltt-lb-error">Unable to load the leaderboard. '+escapeHtml(error && error.message ? error.message : 'Please try again.')+'</div>';
+    const rows = document.getElementById('plttLbRows');
+    if (rows) rows.innerHTML = '<tr><td colspan="9" class="pltt-lb-empty">Leaderboard could not be loaded.</td></tr>';
+  }
+
+  function load(view, gameweek){
+    const rows = document.getElementById('plttLbRows');
+    const message = document.getElementById('plttLbMessage');
+    if (message) message.innerHTML = '';
+    if (rows) rows.innerHTML = '<tr><td colspan="9" class="pltt-lb-empty pltt-lb-loading">Refreshing standings...</td></tr>';
+
+    if (view === 'weekly-leaderboard'){
+      google.script.run.withSuccessHandler(renderWeekly).withFailureHandler(fail).getWeeklyLeaderboardDisplayData(gameweek || '');
+    } else {
+      google.script.run.withSuccessHandler(renderSeason).withFailureHandler(fail).getSeasonLeaderboardDisplayData();
+    }
+  }
+
+  addStyles();
+
+  const originalShowAppView = window.PLTT.showAppView;
+  window.PLTT.showAppView = function(view){
+    if (view !== 'weekly-leaderboard' && view !== 'season-leaderboard'){
+      return originalShowAppView.call(this, view);
+    }
+    shell(view);
+    load(view, '');
+    try { this.scrollApplicationToTop(); } catch (error) { window.scrollTo(0,0); }
+  };
+
+})(window, document);
+</script>
