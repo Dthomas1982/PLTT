@@ -2,9 +2,10 @@
 (function(window, document){
   'use strict';
 
-  const PLTT_WEB_APP = '<?= webAppUrl ?>';
+  const PLTT_WEB_APP = window.PLTT_WEB_APP_URL || '';
 
   window.openPLTTLeaderboard = function(page){
+    if (!PLTT_WEB_APP) return;
     const url = PLTT_WEB_APP + '?page=' + encodeURIComponent(page);
     const link = document.createElement('a');
     link.href = url;
@@ -18,7 +19,6 @@
   function applyLeaderboardDashboard(){
     if (!window.PLTT) return;
 
-    const originalSetupNavigation = window.PLTT.setupNavigation;
     window.PLTT.setupNavigation = function(){
       document.querySelectorAll('.app-nav-item').forEach(button => {
         if (button.dataset.plttBound === '1') return;
