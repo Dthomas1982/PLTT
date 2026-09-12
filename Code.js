@@ -1,12 +1,13 @@
 /**********************************************************************
  * PLTT Platform
  * Code.gs
- * Version: 2.2.0
+ * Version: 2.3.0
  **********************************************************************/
 
 function showWebsite() {
-  return HtmlService
-    .createTemplateFromFile("Index")
+  const template = HtmlService.createTemplateFromFile("Index");
+  template.webAppUrl = ScriptApp.getService().getUrl();
+  return template
     .evaluate()
     .setTitle(APP.NAME)
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
@@ -14,8 +15,9 @@ function showWebsite() {
 
 function showLeaderboardPage_(page) {
   const file = page === 'weekly' ? 'WeeklyLeaderboard' : 'SeasonLeaderboard';
-  return HtmlService
-    .createTemplateFromFile(file)
+  const template = HtmlService.createTemplateFromFile(file);
+  template.webAppUrl = ScriptApp.getService().getUrl();
+  return template
     .evaluate()
     .setTitle(APP.NAME + ' — ' + (page === 'weekly' ? 'Weekly Leaderboard' : 'Season Leaderboard'))
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
