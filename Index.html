@@ -53,12 +53,6 @@
     normalizeAppNavigation();
   }
 
-  const nav = document.querySelector('.app-nav');
-  if (nav && typeof MutationObserver !== 'undefined') {
-    const observer = new MutationObserver(function(){ normalizeAppNavigation(); });
-    observer.observe(nav, { childList: true });
-  }
-
   if (!window.PLTT || typeof window.PLTT.showAppView !== 'function') return;
   const originalShowAppView = window.PLTT.showAppView;
   window.PLTT.showAppView = function(view){
