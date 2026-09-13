@@ -44,7 +44,6 @@ function getDashboardMoneyData(playerID) {
       });
     }
 
-    // A player can only have one current PredictionSet for a Gameweek.
     const uniqueEntries = {};
     entries.forEach(function(entry) {
       uniqueEntries[entry.playerID + "|" + entry.gameweekID] = entry;
@@ -97,6 +96,78 @@ function getDashboardMoneyData(playerID) {
     logAction(
       FEATURES.LEADERBOARD,
       "MONEY_POT_LOAD_ERROR",
+      playerID || "",
+      err.message
+    );
+    return errorResponse(err.message);
+  }
+}
+
+/**
+ * Returns only the logged-in player's outstanding payment records.
+ * The Payments sheet is the source of truth for Paid status.
+ */
+function getDashboardPaymentStatus(playerID) {
+  try {
+    playerID = String(playerID || "").trim();
+    if (!playerID) return errorResponse("Player ID is required.");
+
+    const sheet = getSheet(SHEETS.PAYMENTS);
+    const lastRow = sheet.getLastRow();
+    const lastCol = sheet.getLastColumn();
+
+    if (lastRow <= 1 || lastCol <= 0) {
+      return successResponse("No payment records found.", {
+        outstanding: [],
+        totalOutstanding: 0,
+        outstandingCount: 0
+      });
+    }
+
+    const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+    const values = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+    const playerCol = moneyPotColumnIndex(headers, "PlayerID");
+    const gameweekCol = moneyPotColumnIndex(headers, "GameweekID");
+    const amountCol = moneyPotColumnIndex(headers, "Amount");
+    const paidCol = moneyPotColumnIndex(headers, "Paid");
+
+    if (playerCol === -1 || gameweekCol === -1 || amountCol === -1 || paidCol === -1) {
+      throw new Error("Payments sheet is missing a required payment column.");
+    }
+
+    const outstanding = [];
+
+    values.forEach(function(row) {
+      const rowPlayer = String(row[playerCol] || "").trim();
+      if (rowPlayer !== playerID) return;
+      if (moneyPotBoolean(row[paidCol])) return;
+
+      outstanding.push({
+        gameweekID: String(row[gameweekCol] || "").trim(),
+        amount: roundMoney(Number(row[amountCol] || 0))
+      });
+    });
+
+    outstanding.sort(function(a, b) {
+      const aNum = Number(String(a.gameweekID).replace(/\D/g, "")) || 0;
+      const bNum = Number(String(b.gameweekID).replace(/\D/g, "")) || 0;
+      return aNum - bNum;
+    });
+
+    const totalOutstanding = outstanding.reduce(function(total, item) {
+      return total + Number(item.amount || 0);
+    }, 0);
+
+    return successResponse("Dashboard payment status loaded.", {
+      outstanding: outstanding,
+      totalOutstanding: roundMoney(totalOutstanding),
+      outstandingCount: outstanding.length
+    });
+
+  } catch (err) {
+    logAction(
+      FEATURES.PAYMENT,
+      "DASHBOARD_PAYMENT_STATUS_ERROR",
       playerID || "",
       err.message
     );
