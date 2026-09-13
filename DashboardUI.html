@@ -1,0 +1,280 @@
+<script>
+(function(window, document){
+  'use strict';
+
+  function money(value){
+    return '£' + Number(value || 0).toFixed(2);
+  }
+
+  function escapeHtml(value){
+    return String(value == null ? '' : value).replace(/[&<>\"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  function installStyles(){
+    if (document.getElementById('plttDashboardUIStyles')) return;
+    const style = document.createElement('style');
+    style.id = 'plttDashboardUIStyles';
+    style.textContent = `
+      .pltt-dashboard{display:grid;gap:18px;}
+      .pltt-dashboard-row{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;}
+      .pltt-dashboard-row.equal{grid-template-columns:1fr 1fr;}
+      .pltt-dashboard-card{min-width:0;position:relative;overflow:hidden;}
+      .pltt-dashboard-card.accent{background:linear-gradient(135deg,#15142d,#0b0e18);border-color:rgba(151,117,255,.38);}
+      .pltt-dashboard-card .season{margin-bottom:7px;}
+      .pltt-dashboard-card h2{margin:0 0 8px;}
+      .pltt-dashboard-card p:not(.season){margin:0;color:var(--muted,#9ca9bf);}
+      .pltt-dashboard-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;}
+      .pltt-dashboard-actions button{min-width:170px;}
+      .pltt-dashboard-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px;}
+      .pltt-dashboard-stat{padding:15px;border:1px solid rgba(255,255,255,.09);border-radius:14px;background:rgba(255,255,255,.025);}
+      .pltt-dashboard-stat strong{display:block;font-size:22px;line-height:1.1;}
+      .pltt-dashboard-stat span{display:block;margin-top:5px;color:var(--muted,#9ca9bf);font-size:11px;}
+      .pltt-dashboard-payment{margin-top:16px;display:grid;gap:8px;}
+      .pltt-dashboard-payment-row{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.035);}
+      .pltt-dashboard-payment-row span:last-child{font-weight:900;}
+      .pltt-dashboard-paid{display:flex;align-items:center;gap:8px;margin-top:18px;font-weight:800;}
+      .pltt-dashboard-paid-dot{width:9px;height:9px;border-radius:50%;background:#62d79a;box-shadow:0 0 0 4px rgba(98,215,154,.10);}
+      .pltt-dashboard-due{color:#ffd06a;font-weight:900;}
+      .pltt-dashboard-form{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;}
+      .pltt-form-pill{padding:8px 11px;border:1px solid rgba(255,255,255,.09);border-radius:999px;background:rgba(255,255,255,.025);font-size:11px;font-weight:800;}
+      .pltt-form-pill strong{font-size:14px;margin-right:4px;}
+      .pltt-form-empty{margin-top:15px;color:var(--muted,#9ca9bf);}
+      .pltt-dashboard-linkgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px;}
+      .pltt-dashboard-link{padding:14px;border:1px solid rgba(255,255,255,.09);border-radius:13px;background:rgba(255,255,255,.025);color:inherit;text-align:left;cursor:pointer;font-weight:900;}
+      .pltt-dashboard-link span{display:block;margin-top:4px;color:var(--muted,#9ca9bf);font-size:11px;font-weight:500;}
+      .pltt-payment-overlay{position:fixed;inset:0;background:rgba(0,0,0,.62);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;padding:20px;z-index:9999;}
+      .pltt-payment-modal{width:min(480px,100%);background:#0b0f18;border:1px solid rgba(151,117,255,.35);border-radius:20px;box-shadow:0 24px 80px rgba(0,0,0,.5);padding:24px;}
+      .pltt-payment-modal h2{margin:0 0 8px;}
+      .pltt-payment-modal p{color:var(--muted,#9ca9bf);margin:0 0 18px;}
+      .pltt-payment-list{display:grid;gap:8px;margin:0 0 16px;}
+      .pltt-payment-item{display:flex;justify-content:space-between;padding:12px 14px;background:rgba(255,255,255,.04);border-radius:11px;}
+      .pltt-payment-total{display:flex;justify-content:space-between;padding:14px 0;border-top:1px solid rgba(255,255,255,.10);font-weight:900;}
+      .pltt-payment-buttons{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px;}
+      .pltt-payment-buttons button{flex:1;min-width:150px;}
+      @media(max-width:760px){
+        .pltt-dashboard-row,.pltt-dashboard-row.equal{grid-template-columns:1fr;}
+        .pltt-dashboard-stats{gap:7px;}
+        .pltt-dashboard-stat{padding:12px 9px;}
+        .pltt-dashboard-stat strong{font-size:18px;}
+        .pltt-dashboard-stat span{font-size:9px;}
+        .pltt-dashboard-linkgrid{grid-template-columns:1fr 1fr;}
+      }
+      @media(max-width:430px){
+        .pltt-dashboard-actions{display:grid;}
+        .pltt-dashboard-actions button{width:100%;}
+        .pltt-dashboard-linkgrid{grid-template-columns:1fr;}
+        .pltt-payment-modal{padding:20px;}
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function dashboardMarkup(){
+    const player = window.PLTT.currentPlayer || {};
+    const points = Number(player.seasonPoints || 0);
+    const rank = player.seasonRank || '—';
+    const weeks = Number(player.gameweeksPlayed || 0);
+
+    return `<div class="pltt-dashboard">
+      <div class="pltt-dashboard-row">
+        <article class="app-card pltt-dashboard-card accent">
+          <p class="season" id="dashboardGameweekLabel">GAMEWEEK —</p>
+          <h2>Make your predictions</h2>
+          <p id="dashboardPredictionMessage">Get your picks in before the Gameweek deadline.</p>
+          <div class="pltt-dashboard-actions">
+            <button class="app-action" type="button" data-dashboard-action="predictions">OPEN PREDICTIONS</button>
+            <button class="secondary" type="button" data-dashboard-action="fixtures">VIEW FIXTURES</button>
+          </div>
+        </article>
+
+        <article class="app-card pltt-dashboard-card">
+          <p class="season">PRIZE POT</p>
+          <h2>Money on the line</h2>
+          <div class="pltt-dashboard-stats" style="grid-template-columns:1fr 1fr;">
+            <div class="pltt-dashboard-stat"><strong id="dashboardWeeklyPot">£0.00</strong><span id="dashboardWeeklyPotLabel">Current GW winner</span></div>
+            <div class="pltt-dashboard-stat"><strong id="dashboardSeasonPot">£0.00</strong><span>Season pot</span></div>
+          </div>
+          <p id="dashboardPotSubtext" style="margin-top:13px;">Based on 0 submissions.</p>
+        </article>
+      </div>
+
+      <div class="pltt-dashboard-row equal">
+        <article class="app-card pltt-dashboard-card">
+          <p class="season">YOUR SEASON</p>
+          <h2>Current standing</h2>
+          <div class="pltt-dashboard-stats">
+            <div class="pltt-dashboard-stat"><strong>${points}</strong><span>Points</span></div>
+            <div class="pltt-dashboard-stat"><strong>${escapeHtml(rank)}</strong><span>Rank</span></div>
+            <div class="pltt-dashboard-stat"><strong id="dashboardWeeksPlayed">${weeks}</strong><span>Weeks played</span></div>
+          </div>
+        </article>
+
+        <article class="app-card pltt-dashboard-card">
+          <p class="season">PAYMENT STATUS</p>
+          <h2 id="dashboardPaymentHeading">Payment status</h2>
+          <div id="dashboardPaymentContent"><p>Checking your payment records...</p></div>
+        </article>
+      </div>
+
+      <div class="pltt-dashboard-row equal">
+        <article class="app-card pltt-dashboard-card">
+          <p class="season">RECENT FORM</p>
+          <h2>How you're doing</h2>
+          <div id="dashboardRecentForm"><p>Loading your recent Gameweeks...</p></div>
+          <div class="pltt-dashboard-actions"><button class="secondary" type="button" data-dashboard-action="history">OPEN HISTORY</button></div>
+        </article>
+
+        <article class="app-card pltt-dashboard-card">
+          <p class="season">COMPETITION</p>
+          <h2>Stay in the race</h2>
+          <p>See how you compare with the rest of the field.</p>
+          <div class="pltt-dashboard-linkgrid">
+            <button class="pltt-dashboard-link" type="button" data-dashboard-action="weekly-leaderboard">Weekly Leaderboard<span>See this week's battle</span></button>
+            <button class="pltt-dashboard-link" type="button" data-dashboard-action="season-leaderboard">Season Leaderboard<span>See the overall standings</span></button>
+            <button class="pltt-dashboard-link" type="button" data-dashboard-action="gameweekPredictions">Player Selection<span>View submitted selections</span></button>
+            <button class="pltt-dashboard-link" type="button" data-dashboard-action="rules">Rules<span>Check the scoring system</span></button>
+          </div>
+        </article>
+      </div>
+    </div>`;
+  }
+
+  function bindDashboardActions(){
+    document.querySelectorAll('[data-dashboard-action]').forEach(function(button){
+      if (button.dataset.dashboardBound === '1') return;
+      button.dataset.dashboardBound = '1';
+      button.addEventListener('click', function(){
+        if (window.PLTT && typeof window.PLTT.showAppView === 'function') {
+          window.PLTT.showAppView(button.dataset.dashboardAction);
+        }
+      });
+    });
+  }
+
+  function loadDashboardExtras(pltt){
+    const playerID = pltt.currentPlayer && pltt.currentPlayer.playerID ? String(pltt.currentPlayer.playerID) : '';
+    if (!playerID || typeof google === 'undefined' || !google.script || !google.script.run) return;
+
+    google.script.run
+      .withSuccessHandler(function(result){
+        if (!result || result.success !== true || !result.data) return;
+        const data = result.data;
+        const weekly = document.getElementById('dashboardWeeklyPot');
+        const season = document.getElementById('dashboardSeasonPot');
+        const weeks = document.getElementById('dashboardWeeksPlayed');
+        const subtext = document.getElementById('dashboardPotSubtext');
+        const label = document.getElementById('dashboardWeeklyPotLabel');
+        const gwLabel = document.getElementById('dashboardGameweekLabel');
+        if (weekly) weekly.textContent = money(data.weeklyWinnerPot);
+        if (season) season.textContent = money(data.seasonPot);
+        if (weeks) weeks.textContent = String(data.weeksPlayed || 0);
+        const gw = String(data.currentGameweek || '').trim();
+        if (label) label.textContent = gw ? gw + ' winner' : 'Current GW winner';
+        if (gwLabel) gwLabel.textContent = gw ? 'GAMEWEEK ' + gw.replace(/^GW/i,'') : 'GAMEWEEK —';
+        if (subtext) {
+          const count = Number(data.submissionCount || 0);
+          subtext.textContent = 'Based on ' + count + ' submission' + (count === 1 ? '' : 's') + '.';
+        }
+      })
+      .getDashboardMoneyData(playerID);
+
+    google.script.run
+      .withSuccessHandler(renderPaymentStatus)
+      .getDashboardPaymentStatus(playerID);
+
+    google.script.run
+      .withSuccessHandler(renderRecentForm)
+      .getSelectionHistoryFiltered(playerID, '');
+  }
+
+  function renderPaymentStatus(result){
+    const target = document.getElementById('dashboardPaymentContent');
+    if (!target || !result || result.success !== true || !result.data) return;
+    const data = result.data;
+    const outstanding = Array.isArray(data.outstanding) ? data.outstanding : [];
+
+    if (!outstanding.length) {
+      target.innerHTML = '<div class="pltt-dashboard-paid"><span class="pltt-dashboard-paid-dot"></span>All payments are up to date</div>';
+      return;
+    }
+
+    target.innerHTML = '<div class="pltt-dashboard-payment">' + outstanding.map(function(item){
+      return '<div class="pltt-dashboard-payment-row"><span>' + escapeHtml(item.gameweekID) + '</span><span class="pltt-dashboard-due">' + money(item.amount) + '</span></div>';
+    }).join('') + '</div><div class="pltt-dashboard-total" style="display:flex;justify-content:space-between;margin-top:14px;font-weight:900;"><span>Total outstanding</span><span class="pltt-dashboard-due">' + money(data.totalOutstanding) + '</span></div><div class="pltt-dashboard-actions"><button class="app-action" type="button" data-dashboard-action="payment">VIEW PAYMENT</button></div>';
+    bindDashboardActions();
+
+    if (!window.__plttPaymentPopupShown) {
+      window.__plttPaymentPopupShown = true;
+      showPaymentPopup(outstanding, data.totalOutstanding);
+    }
+  }
+
+  function renderRecentForm(result){
+    const target = document.getElementById('dashboardRecentForm');
+    if (!target || !result || result.success !== true || !result.data) return;
+    const groups = Array.isArray(result.data.groups) ? result.data.groups.slice() : [];
+    groups.sort(function(a,b){
+      const an = Number(String(a.gameweekID || '').replace(/\D/g,'')) || 0;
+      const bn = Number(String(b.gameweekID || '').replace(/\D/g,'')) || 0;
+      return bn - an;
+    });
+    const recent = groups.slice(0,5);
+    if (!recent.length) {
+      target.innerHTML = '<p class="pltt-form-empty">No completed Gameweek results yet.</p>';
+      return;
+    }
+    target.innerHTML = '<div class="pltt-dashboard-form">' + recent.map(function(group){
+      return '<div class="pltt-form-pill"><strong>' + escapeHtml(group.gameweekID) + '</strong>' + Number(group.totalPoints || 0) + ' pts</div>';
+    }).join('') + '</div>';
+  }
+
+  function showPaymentPopup(outstanding, total){
+    const old = document.getElementById('plttPaymentOverlay');
+    if (old) old.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'plttPaymentOverlay';
+    overlay.className = 'pltt-payment-overlay';
+    overlay.innerHTML = '<div class="pltt-payment-modal" role="dialog" aria-modal="true" aria-labelledby="plttPaymentTitle">' +
+      '<p class="season">PAYMENT REMINDER</p>' +
+      '<h2 id="plttPaymentTitle">You have outstanding payments</h2>' +
+      '<p>Please settle the following Gameweeks. Your payment status is taken directly from the Payments record.</p>' +
+      '<div class="pltt-payment-list">' + outstanding.map(function(item){
+        return '<div class="pltt-payment-item"><span>' + escapeHtml(item.gameweekID) + '</span><strong>' + money(item.amount) + '</strong></div>';
+      }).join('') + '</div>' +
+      '<div class="pltt-payment-total"><span>Total outstanding</span><span>' + money(total) + '</span></div>' +
+      '<div class="pltt-payment-buttons"><button class="app-action" type="button" id="plttViewPayment">VIEW PAYMENT</button><button class="secondary" type="button" id="plttRemindLater">REMIND ME LATER</button></div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+
+    document.getElementById('plttRemindLater').addEventListener('click', function(){ overlay.remove(); });
+    document.getElementById('plttViewPayment').addEventListener('click', function(){
+      overlay.remove();
+      if (window.PLTT && typeof window.PLTT.showAppView === 'function') window.PLTT.showAppView('payment');
+    });
+  }
+
+  function apply(){
+    if (!window.PLTT) return;
+    installStyles();
+    window.PLTT.dashboardMarkup = dashboardMarkup;
+    const originalShow = window.PLTT.showAppView;
+    if (window.__plttDashboardUIWrapped) return;
+    window.__plttDashboardUIWrapped = true;
+    window.PLTT.showAppView = function(view){
+      originalShow.call(this, view);
+      if (view === 'dashboard') {
+        bindDashboardActions();
+        loadDashboardExtras(this);
+      }
+    };
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', apply);
+  } else {
+    apply();
+  }
+})(window, document);
+</script>
